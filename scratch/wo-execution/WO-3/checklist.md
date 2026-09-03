@@ -6,4 +6,4 @@
 - [x] Deterministic effective-settings resolution covered by tests
 - [x] Dependent-operation deletion protection covered by tests
 - [x] Hierarchy change events recorded for publication
-- [ ] GitHub Actions validation passed
+- [x] GitHub Actions validation passed
