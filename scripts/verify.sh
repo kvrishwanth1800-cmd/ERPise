@@ -2,7 +2,7 @@
 set -eu
 
 corepack enable
-PNPM_CONFIG_FROZEN_LOCKFILE=false pnpm install --no-frozen-lockfile
+pnpm install --lockfile=false
 pnpm verify
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
