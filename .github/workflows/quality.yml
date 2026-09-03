@@ -49,7 +49,7 @@ jobs:
       - name: Sync Python workspace
         run: uv sync --all-groups
       - name: Lint Python workspace
-        run: uv run ruff check services
+        run: uv run ruff check services --output-format=github
       - name: Type-check Python workspace
         run: uv run mypy
       - name: Test Python workspace
