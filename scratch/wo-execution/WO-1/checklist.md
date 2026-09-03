@@ -6,6 +6,9 @@
 - [x] Non-secret environment template defined
 - [x] One-command start documented
 - [x] CI validation workflow defined
-- [ ] Docker Compose configuration executed
-- [ ] Stack health executed
-- [ ] CI result inspected
+- [x] Health inspection uses Docker inspect state rather than Compose JSON formatting
+- [x] Health inspection waits with bounded retries and service-specific logs
+- [x] Windows PowerShell validation documented
+- [ ] Docker Compose configuration executed successfully
+- [ ] Stack health executed successfully
+- [ ] CI result inspected successfully

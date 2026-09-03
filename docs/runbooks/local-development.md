@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-Install Docker Desktop with Docker Compose v2. On Windows, use the WSL 2 backend and run these commands from a WSL distribution or a shell that can execute `sh` scripts.
+Install Docker Desktop with Docker Compose v2. On Windows, use the WSL 2 backend and run the shell commands from a WSL distribution. PowerShell commands are provided below for validation.
 
 ## Start the local stack
 
@@ -14,7 +14,30 @@ The command starts PostgreSQL, Redpanda, Redis, MinIO, ClickHouse, and the OpenT
 
 ## Check health
 
-Run `make local-health`. The script reports a health result for every required dependency and exits non-zero if a dependency is unavailable.
+Run `make local-health`. The script waits with bounded retries, reports each dependency state, prints recent logs for any unhealthy dependency, and exits non-zero only after a dependency remains unhealthy after the configured retry limit.
+
+## Windows PowerShell validation
+
+Run the following from the repository root after Docker Desktop is running:
+
+```powershell
+Copy-Item .env.example .env
+# Replace only local placeholder values in .env. Do not use production credentials.
+docker compose --env-file .env config --quiet
+docker compose --env-file .env up --detach --wait --wait-timeout 180
+$services = 'postgres','redpanda','redis','minio','clickhouse','otel-collector'
+foreach ($service in $services) {
+  $id = docker compose ps -q $service
+  if (-not $id) { throw "$service has no container" }
+  $health = docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' $id
+  if ($health -ne 'healthy' -and $health -ne 'running') {
+    docker compose logs --tail 80 --no-color $service
+    throw "$service is $health"
+  }
+  Write-Output "$service: healthy"
+}
+docker compose --env-file .env down --volumes
+```
 
 ## Stop the local stack
 

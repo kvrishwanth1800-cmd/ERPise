@@ -1,14 +1,22 @@
 # WO-1 verification log
 
-## Fulfillment check
+## Initial validation failure
 
-- Requirement coverage: implementation mapped to AC-FND-001.1 through AC-FND-001.3.
-- Blueprint compliance: Docker Compose local stack, non-authoritative local dependencies, and OpenTelemetry Collector configured.
-- Files changed versus plan: all planned files created.
-- Security: `.env` ignored; environment template uses local-only placeholders; no production credentials.
-- Tests: GitHub Actions validation workflow added. Execution is pending remote CI because this session cannot execute Docker commands.
-- Deployment: not applicable. Production deployment excluded.
-- Rollback: revert this focused commit; named volumes remain local and can be removed explicitly.
+The Foundation validation run started the Docker Compose stack successfully, but failed in `scripts/local-health.sh` during health inspection. The failing command parsed `docker compose ps --format json` with a lowercase string pattern. Compose JSON output does not guarantee that field casing or structure, so the script reported a false unhealthy result after the stack had started.
+
+## Corrective change
+
+The health script now obtains each service container ID with `docker compose ps -q` and reads its actual Docker state through `docker inspect`. It uses bounded retries, reports the current state on each wait, prints the exact unhealthy service and its most recent logs at timeout, and treats containers without a Docker health check as healthy only when their runtime state is `running`.
+
+## Fulfillment check after correction
+
+- Requirement coverage: mapped to AC-FND-001.1 through AC-FND-001.3.
+- Blueprint compliance: pinned local stack, persistent volumes, non-secret configuration, and local OpenTelemetry Collector remain unchanged.
+- Files changed versus plan: health script, CI workflow, Windows validation runbook, checklist, and verification log updated to correct validation behavior.
+- Security: no production credentials; `.env` remains ignored; diagnostics contain service logs only.
+- Tests: Compose configuration and health validation must rerun in GitHub Actions. This environment cannot execute Docker locally.
+- Deployment: not applicable. Production deployment is excluded.
+- Rollback: revert this corrective commit. Local named volumes remain local and can be removed explicitly.
 
 ## Final Role Sign-Off
 
@@ -30,6 +38,6 @@
 - Performance review: NOT APPLICABLE
 - Behavior preserved after optimization: PASS
 
-## Blocker
+## Pending verification
 
-Docker Compose configuration and live dependency health cannot be executed from the current environment. CI must complete successfully before this work order can be marked complete.
+GitHub Actions must pass the complete Compose configuration, startup, and health inspection sequence before the work order can be complete.

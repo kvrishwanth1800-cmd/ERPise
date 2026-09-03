@@ -22,7 +22,10 @@ jobs:
       - name: Start local stack and check health
         run: docker compose --env-file .env up --detach --wait --wait-timeout 180
       - name: Inspect local health
-        run: sh ./scripts/local-health.sh
+        env:
+          LOCAL_HEALTH_MAX_ATTEMPTS: 30
+          LOCAL_HEALTH_RETRY_SECONDS: 2
+        run: ./scripts/local-health.sh
       - name: Collect logs on failure
         if: failure()
         run: docker compose --env-file .env logs --no-color
