@@ -53,7 +53,7 @@ jobs:
       - name: Type-check Python workspace
         run: uv run mypy
       - name: Test Python workspace
-        run: uv run pytest
+        run: uv run pytest services
       - name: Check Terraform formatting
         run: terraform -chdir=infrastructure/terraform fmt -check
       - name: Initialize Terraform validation
