@@ -1,0 +1,31 @@
+name: Foundation validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feature/**
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local configuration
+        run: cp .env.example .env
+      - name: Validate Compose configuration
+        run: docker compose --env-file .env config --quiet
+      - name: Start local stack and check health
+        run: docker compose --env-file .env up --detach --wait --wait-timeout 180
+      - name: Inspect local health
+        run: ./scripts/local-health.sh
+      - name: Collect logs on failure
+        if: failure()
+        run: docker compose --env-file .env logs --no-color
+      - name: Stop local stack
+        if: always()
+        run: docker compose --env-file .env down --volumes
