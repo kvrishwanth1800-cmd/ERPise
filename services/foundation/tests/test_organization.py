@@ -1,5 +1,3 @@
-import pytest
-
 from foundation.organization import (
     OrganizationHierarchyService,
     ProtectedDeletionError,
@@ -7,6 +5,8 @@ from foundation.organization import (
     ScopeDeniedError,
     ScopeResolver,
 )
+
+import pytest
 
 
 def tenant_admin(tenant_id: str) -> ScopeContext:
