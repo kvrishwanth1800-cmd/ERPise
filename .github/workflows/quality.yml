@@ -30,5 +30,33 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.10.5
-      - name: Verify polyglot workspace
-        run: sh ./scripts/verify.sh
+      - name: Install TypeScript workspace dependencies
+        run: env -u CI -u GITHUB_ACTIONS -u BUILD_NUMBER -u RUN_ID -u CONTINUOUS_INTEGRATION pnpm install --no-frozen-lockfile --config.frozen-lockfile=false
+      - name: Check TypeScript formatting
+        run: pnpm format
+      - name: Lint TypeScript workspace
+        run: pnpm lint
+      - name: Type-check TypeScript workspace
+        run: pnpm typecheck
+      - name: Test TypeScript workspace
+        run: pnpm test
+      - name: Check Rust formatting
+        run: cargo fmt --check
+      - name: Lint Rust workspace
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test Rust workspace
+        run: cargo test --workspace
+      - name: Sync Python workspace
+        run: uv sync --all-groups
+      - name: Lint Python workspace
+        run: uv run ruff check services
+      - name: Type-check Python workspace
+        run: uv run mypy
+      - name: Test Python workspace
+        run: uv run pytest
+      - name: Check Terraform formatting
+        run: terraform -chdir=infrastructure/terraform fmt -check
+      - name: Initialize Terraform validation
+        run: terraform -chdir=infrastructure/terraform init -backend=false
+      - name: Validate Terraform configuration
+        run: terraform -chdir=infrastructure/terraform validate
