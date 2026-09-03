@@ -10,7 +10,11 @@ from foundation.organization import (
 
 
 def tenant_admin(tenant_id: str) -> ScopeContext:
-    return ScopeResolver().resolve(tenant_id, tenant_id, is_tenant_administrator=True)
+    return ScopeResolver().resolve(
+        tenant_id,
+        tenant_id,
+        is_tenant_administrator=True,
+    )
 
 
 def test_hierarchy_records_retain_tenant_and_parent_scope() -> None:

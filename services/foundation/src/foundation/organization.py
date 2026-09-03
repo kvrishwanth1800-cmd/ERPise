@@ -36,7 +36,9 @@ class ScopeResolver:
         is_tenant_administrator: bool = False,
     ) -> ScopeContext:
         if not authenticated_tenant_id or authenticated_tenant_id != requested_tenant_id:
-            raise ScopeDeniedError("The requested tenant is outside the authenticated scope.")
+            raise ScopeDeniedError(
+                "The requested tenant is outside the authenticated scope."
+            )
         return ScopeContext(
             tenant_id=authenticated_tenant_id,
             authorized_organization_ids=authorized_organization_ids,
@@ -75,7 +77,9 @@ class OrganizationHierarchyService:
         settings: Mapping[str, str] | None = None,
     ) -> OrganizationRecord:
         if not organization_id or organization_id in self._records:
-            raise HierarchyValidationError("Organization identifiers must be unique and non-empty.")
+            raise HierarchyValidationError(
+                "Organization identifiers must be unique and non-empty."
+            )
         self._authorize_parent(scope, parent_organization_id)
         record = OrganizationRecord(
             organization_id=organization_id,
@@ -106,7 +110,9 @@ class OrganizationHierarchyService:
         if record is None or record.tenant_id != scope.tenant_id:
             raise ScopeDeniedError("The organization is outside the authorized tenant scope.")
         if not scope.is_tenant_administrator and organization_id not in scope.authorized_organization_ids:
-            raise ScopeDeniedError("The organization is outside the authorized organization scope.")
+            raise ScopeDeniedError(
+                "The organization is outside the authorized organization scope."
+            )
         return record
 
     def effective_settings(self, scope: ScopeContext, organization_id: str) -> dict[str, str]:
@@ -127,7 +133,9 @@ class OrganizationHierarchyService:
 
     def register_dependent_operation(self, organization_id: str) -> None:
         if organization_id not in self._records:
-            raise HierarchyValidationError("Cannot register a dependency for an unknown organization.")
+            raise HierarchyValidationError(
+                "Cannot register a dependency for an unknown organization."
+            )
         self._dependent_operation_counts[organization_id] = (
             self._dependent_operation_counts.get(organization_id, 0) + 1
         )
@@ -135,9 +143,13 @@ class OrganizationHierarchyService:
     def delete(self, scope: ScopeContext, organization_id: str) -> None:
         record = self.get(scope, organization_id)
         if self._dependent_operation_counts.get(organization_id, 0) > 0:
-            raise ProtectedDeletionError("Organizations with dependent operations cannot be deleted.")
+            raise ProtectedDeletionError(
+                "Organizations with dependent operations cannot be deleted."
+            )
         if any(item.parent_organization_id == organization_id for item in self._records.values()):
-            raise ProtectedDeletionError("Organizations with child organizations cannot be deleted.")
+            raise ProtectedDeletionError(
+                "Organizations with child organizations cannot be deleted."
+            )
         del self._records[organization_id]
         self._dependent_operation_counts.pop(organization_id, None)
         self._publish(record, "deleted")
@@ -145,7 +157,9 @@ class OrganizationHierarchyService:
     def _authorize_parent(self, scope: ScopeContext, parent_organization_id: str | None) -> None:
         if parent_organization_id is None:
             if not scope.is_tenant_administrator:
-                raise ScopeDeniedError("Only a tenant administrator can create a root organization.")
+                raise ScopeDeniedError(
+                    "Only a tenant administrator can create a root organization."
+                )
             return
         self.get(scope, parent_organization_id)
 
