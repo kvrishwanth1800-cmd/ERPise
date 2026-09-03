@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "packageManager": "pnpm@9.15.5",
   "scripts": {
-    "format": "prettier --check .",
-    "format:write": "prettier --write .",
+    "format": "prettier --check \"{apps,packages}/**/*.{ts,tsx,js,mjs,json}\" \"*.{js,mjs,json}\"",
+    "format:write": "prettier --write \"{apps,packages}/**/*.{ts,tsx,js,mjs,json}\" \"*.{js,mjs,json}\"",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
