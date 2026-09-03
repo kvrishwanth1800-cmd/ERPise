@@ -2,7 +2,8 @@
 set -eu
 
 corepack enable
-env -u CI pnpm install --no-frozen-lockfile
+env -u CI -u GITHUB_ACTIONS -u BUILD_NUMBER -u RUN_ID -u CONTINUOUS_INTEGRATION \
+  pnpm install --no-frozen-lockfile --config.frozen-lockfile=false
 pnpm verify
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
