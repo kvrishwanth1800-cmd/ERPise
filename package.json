@@ -1,0 +1,23 @@
+{
+  "name": "erpise",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.5",
+  "scripts": {
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify": "pnpm format && pnpm lint && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.20.0",
+    "@types/node": "22.13.1",
+    "eslint": "9.20.0",
+    "prettier": "3.5.1",
+    "typescript": "5.7.3",
+    "typescript-eslint": "8.23.0",
+    "vitest": "3.0.5"
+  }
+}
