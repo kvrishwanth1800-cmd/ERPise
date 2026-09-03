@@ -1,0 +1,2 @@
+# ERPise
+Ai powered ERP
