@@ -7,4 +7,6 @@ Run `sh scripts/verify.sh` from the repository root. It validates the TypeScript
 3. uv-managed Ruff, mypy strict mode, and pytest.
 4. Terraform formatting, offline initialization, and validation.
 
+The first run may create language lockfiles because this foundation begins with no dependency lock artifacts. Commit generated lockfiles with the work order that introduces them. Package and tool versions remain exact in the workspace manifests.
+
 The command does not start infrastructure and does not use production credentials. Use `make local-up` separately when a work order requires local dependencies.
