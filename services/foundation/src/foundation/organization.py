@@ -92,7 +92,10 @@ class OrganizationHierarchyService:
         return record
 
     def update_settings(
-        self, scope: ScopeContext, organization_id: str, settings: Mapping[str, str]
+        self,
+        scope: ScopeContext,
+        organization_id: str,
+        settings: Mapping[str, str],
     ) -> OrganizationRecord:
         record = self.get(scope, organization_id)
         updated = OrganizationRecord(
@@ -109,13 +112,20 @@ class OrganizationHierarchyService:
         record = self._records.get(organization_id)
         if record is None or record.tenant_id != scope.tenant_id:
             raise ScopeDeniedError("The organization is outside the authorized tenant scope.")
-        if not scope.is_tenant_administrator and organization_id not in scope.authorized_organization_ids:
+        if (
+            not scope.is_tenant_administrator
+            and organization_id not in scope.authorized_organization_ids
+        ):
             raise ScopeDeniedError(
                 "The organization is outside the authorized organization scope."
             )
         return record
 
-    def effective_settings(self, scope: ScopeContext, organization_id: str) -> dict[str, str]:
+    def effective_settings(
+        self,
+        scope: ScopeContext,
+        organization_id: str,
+    ) -> dict[str, str]:
         record = self.get(scope, organization_id)
         lineage: list[OrganizationRecord] = []
         while True:
@@ -154,7 +164,11 @@ class OrganizationHierarchyService:
         self._dependent_operation_counts.pop(organization_id, None)
         self._publish(record, "deleted")
 
-    def _authorize_parent(self, scope: ScopeContext, parent_organization_id: str | None) -> None:
+    def _authorize_parent(
+        self,
+        scope: ScopeContext,
+        parent_organization_id: str | None,
+    ) -> None:
         if parent_organization_id is None:
             if not scope.is_tenant_administrator:
                 raise ScopeDeniedError(
