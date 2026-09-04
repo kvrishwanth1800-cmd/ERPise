@@ -14,14 +14,15 @@ const check = spawnSync('pnpm', ['exec', 'prettier', '--check', ...targets], {
 });
 
 if (check.status !== 0) {
-  process.stderr.write('\nFormatter violations:\n');
-  spawnSync('pnpm', ['exec', 'prettier', '--list-different', ...targets], {
-    stdio: 'inherit'
-  });
-
   const path = 'packages/contracts/src/index.ts';
   const source = readFileSync(path, 'utf8');
   const canonical = await format(source, { filepath: path });
-  process.stderr.write(`\nCanonical ${path}:\n${canonical}`);
+  const sourceLines = source.split('\n');
+  const canonicalLines = canonical.split('\n');
+  const changes = canonicalLines
+    .map((line, index) => ({ line: index + 1, current: sourceLines[index], canonical: line }))
+    .filter(change => change.current !== change.canonical);
+
+  process.stderr.write(`FORMAT_DIFF=${JSON.stringify(changes)}\n`);
   process.exit(check.status ?? 1);
 }
