@@ -51,15 +51,24 @@ export function validateCommandEnvelope(
   if (value.version !== CONTRACT_VERSION_V1) {
     return unsupportedVersion();
   }
-  for (const field of ['commandId', 'commandType', 'traceId', 'idempotencyKey']) {
+  for (const field of [
+    'commandId',
+    'commandType',
+    'traceId',
+    'idempotencyKey',
+  ]) {
     if (!isNonEmptyString(value[field])) {
-      return invalidCommand(`Command envelope field ${field} must be a non-empty string.`);
+      return invalidCommand(
+        `Command envelope field ${field} must be a non-empty string.`,
+      );
     }
   }
   return { ok: true, value: value as CommandEnvelope<unknown> };
 }
 
-export function validateDomainEvent(value: unknown): ValidationResult<DomainEvent<unknown>> {
+export function validateDomainEvent(
+  value: unknown,
+): ValidationResult<DomainEvent<unknown>> {
   if (!isRecord(value)) {
     return invalidEvent('A domain event must be an object.');
   }
@@ -68,7 +77,9 @@ export function validateDomainEvent(value: unknown): ValidationResult<DomainEven
   }
   for (const field of ['eventId', 'eventType', 'occurredAt', 'traceId']) {
     if (!isNonEmptyString(value[field])) {
-      return invalidEvent(`Domain event field ${field} must be a non-empty string.`);
+      return invalidEvent(
+        `Domain event field ${field} must be a non-empty string.`,
+      );
     }
   }
   return { ok: true, value: value as DomainEvent<unknown> };
@@ -83,11 +94,17 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function invalidCommand(message: string): ValidationResult<never> {
-  return { ok: false, problem: { code: 'invalid_command', message, retryable: false } };
+  return {
+    ok: false,
+    problem: { code: 'invalid_command', message, retryable: false },
+  };
 }
 
 function invalidEvent(message: string): ValidationResult<never> {
-  return { ok: false, problem: { code: 'invalid_event', message, retryable: false } };
+  return {
+    ok: false,
+    problem: { code: 'invalid_event', message, retryable: false },
+  };
 }
 
 function unsupportedVersion(): ValidationResult<never> {

@@ -9,7 +9,10 @@ import {
 
 describe('HealthCheckResult', () => {
   it('represents a healthy dependency', () => {
-    const result: HealthCheckResult = { service: 'postgres', status: 'healthy' };
+    const result: HealthCheckResult = {
+      service: 'postgres',
+      status: 'healthy',
+    };
 
     expect(result.status).toBe('healthy');
   });
@@ -39,7 +42,10 @@ describe('versioned command contracts', () => {
       payload: {},
     });
 
-    expect(result).toMatchObject({ ok: false, problem: { code: 'invalid_command' } });
+    expect(result).toMatchObject({
+      ok: false,
+      problem: { code: 'invalid_command' },
+    });
   });
 
   it('rejects an unsupported command version', () => {
@@ -75,6 +81,9 @@ describe('versioned event contracts', () => {
       payload: {},
     });
 
-    expect(result).toMatchObject({ ok: false, problem: { code: 'invalid_event' } });
+    expect(result).toMatchObject({
+      ok: false,
+      problem: { code: 'invalid_event' },
+    });
   });
 });
