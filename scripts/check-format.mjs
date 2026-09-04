@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { format } from 'prettier';
 
 const targets = [
   'packages/**/*.{ts,tsx,js,mjs,json}',
@@ -16,9 +18,10 @@ if (check.status !== 0) {
   spawnSync('pnpm', ['exec', 'prettier', '--list-different', ...targets], {
     stdio: 'inherit'
   });
-  spawnSync('pnpm', ['exec', 'prettier', '--write', ...targets], {
-    stdio: 'inherit'
-  });
-  spawnSync('git', ['diff', '--no-ext-diff'], { stdio: 'inherit' });
+
+  const path = 'packages/contracts/src/index.ts';
+  const source = readFileSync(path, 'utf8');
+  const canonical = await format(source, { filepath: path });
+  process.stderr.write(`\nCanonical ${path}:\n${canonical}`);
   process.exit(check.status ?? 1);
 }
