@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class SelfApprovalError(PermissionError):
@@ -58,7 +58,7 @@ class AuditRecorder:
             source=source,
             reason=reason,
             policy=policy,
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
             trace_id=trace_id,
             result=result,
         )
@@ -110,7 +110,12 @@ class ApprovalWorkflowService:
         self._record_transition(request, requester_id, trace_id, "created")
         return request
 
-    def approve(self, approval_id: str, approver_id: str, trace_id: str) -> ApprovalRequest:
+    def approve(
+        self,
+        approval_id: str,
+        approver_id: str,
+        trace_id: str,
+    ) -> ApprovalRequest:
         request = self._pending_request(approval_id)
         if approver_id == request.requester_id:
             raise SelfApprovalError("Requesters cannot approve their own requests.")
