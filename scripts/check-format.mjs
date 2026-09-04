@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import process from 'node:process';
+
 import { format, resolveConfig } from 'prettier';
 
 const targets = [
