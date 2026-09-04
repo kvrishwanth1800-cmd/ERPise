@@ -25,6 +25,10 @@ def apply_projection(projection: dict[str, object], committed_event: DomainEvent
     projection[committed_event.event_id] = committed_event.payload
 
 
+def fail_operation(_state: dict[str, object]) -> None:
+    raise RuntimeError("operation failed")
+
+
 def test_commit_stages_state_and_outbox_record_together() -> None:
     outbox = TransactionalOutbox()
 
@@ -40,7 +44,7 @@ def test_failed_state_operation_does_not_commit_an_outbox_record() -> None:
     outbox = TransactionalOutbox()
 
     with pytest.raises(RuntimeError, match="operation failed"):
-        outbox.commit(lambda _state: (_ for _ in ()).throw(RuntimeError("operation failed")), event())
+        outbox.commit(fail_operation, event())
 
     assert outbox.state == {}
     assert outbox.records == ()
