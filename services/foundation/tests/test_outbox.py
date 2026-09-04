@@ -52,8 +52,12 @@ def test_publisher_retries_only_undelivered_committed_records() -> None:
     published: list[str] = []
     publisher = OutboxPublisher()
 
-    delivered = publisher.publish_pending(outbox, lambda committed_event: published.append(committed_event.event_id))
-    repeated = publisher.publish_pending(outbox, lambda committed_event: published.append(committed_event.event_id))
+    delivered = publisher.publish_pending(
+        outbox, lambda committed_event: published.append(committed_event.event_id)
+    )
+    repeated = publisher.publish_pending(
+        outbox, lambda committed_event: published.append(committed_event.event_id)
+    )
 
     assert [record.record_id for record in delivered] == ["outbox-event-a"]
     assert repeated == ()
@@ -64,8 +68,16 @@ def test_duplicate_delivery_has_one_logical_effect() -> None:
     consumer = ReplaySafeConsumer()
     unsafe_calls: list[str] = []
 
-    first = consumer.consume(event(), apply_projection, lambda committed_event: unsafe_calls.append(committed_event.event_id))
-    duplicate = consumer.consume(event(), apply_projection, lambda committed_event: unsafe_calls.append(committed_event.event_id))
+    first = consumer.consume(
+        event(),
+        apply_projection,
+        lambda committed_event: unsafe_calls.append(committed_event.event_id),
+    )
+    duplicate = consumer.consume(
+        event(),
+        apply_projection,
+        lambda committed_event: unsafe_calls.append(committed_event.event_id),
+    )
 
     assert first.applied is True
     assert duplicate.applied is False
