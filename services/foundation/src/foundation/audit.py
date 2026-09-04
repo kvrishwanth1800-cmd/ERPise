@@ -148,7 +148,12 @@ class ApprovalWorkflowService:
         )
         self._requests[approval_id] = resolved
         self._record_transition(resolved, "workflow", trace_id, request.timeout_outcome)
-        self.outbox.append(ApprovalResolved(approval_id=approval_id, outcome=request.timeout_outcome))
+        self.outbox.append(
+            ApprovalResolved(
+                approval_id=approval_id,
+                outcome=request.timeout_outcome,
+            )
+        )
         return resolved
 
     def _pending_request(self, approval_id: str) -> ApprovalRequest:
