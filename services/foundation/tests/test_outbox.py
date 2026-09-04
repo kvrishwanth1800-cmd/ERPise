@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 import pytest
@@ -21,7 +22,9 @@ def event(event_id: str = "event-a") -> DomainEvent:
     )
 
 
-def apply_projection(projection: dict[str, object], committed_event: DomainEvent) -> None:
+def apply_projection(
+    projection: dict[str, Mapping[str, object]], committed_event: DomainEvent
+) -> None:
     projection[committed_event.event_id] = committed_event.payload
 
 
