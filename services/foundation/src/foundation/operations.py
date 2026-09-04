@@ -204,7 +204,8 @@ class OperationsEvidenceService:
         self._require_values(tenant_id, trace_id)
         rows = self._connection.execute(
             """
-            SELECT evidence_id, tenant_id, trace_id, event_id, event_type, event_version, occurred_at
+            SELECT
+              evidence_id, tenant_id, trace_id, event_id, event_type, event_version, occurred_at
             FROM operations_evidence
             WHERE tenant_id = %s AND trace_id = %s AND evidence_type = 'trace-event'
             ORDER BY occurred_at, evidence_id
@@ -234,7 +235,9 @@ class OperationsEvidenceService:
             (tenant_id, trace_id),
         ).fetchone()
         if row is None:
-            raise OperationsEvidenceError("Telemetry evidence does not exist for this tenant trace.")
+            raise OperationsEvidenceError(
+                "Telemetry evidence does not exist for this tenant trace."
+            )
         return row["details"]
 
     def prune_before(self, tenant_id: str, cutoff: datetime) -> int:
@@ -305,4 +308,6 @@ class OperationsEvidenceService:
     @staticmethod
     def _require_values(*values: str) -> None:
         if any(not value for value in values):
-            raise OperationsEvidenceError("Evidence identifiers, tenant scope, and trace context are required.")
+            raise OperationsEvidenceError(
+                "Evidence identifiers, tenant scope, and trace context are required."
+            )

@@ -81,7 +81,9 @@ def test_restore_exercise_records_failed_and_successful_outcomes(
 
 
 @pytest.mark.integration
-def test_telemetry_redacts_secrets_and_card_data(operations_service: OperationsEvidenceService) -> None:
+def test_telemetry_redacts_secrets_and_card_data(
+    operations_service: OperationsEvidenceService,
+) -> None:
     operations_service.record_telemetry(
         f"telemetry-{uuid4()}",
         "tenant-a",
