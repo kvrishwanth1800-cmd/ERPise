@@ -50,9 +50,7 @@ export function validateCommandEnvelope(
   }
   for (const field of ['commandId', 'commandType', 'traceId', 'idempotencyKey']) {
     if (!isNonEmptyString(value[field])) {
-      return invalidCommand(
-        `Command envelope field ${field} must be a non-empty string.`
-      );
+      return invalidCommand(`Command envelope field ${field} must be a non-empty string.`);
     }
   }
   return { ok: true, value: value as CommandEnvelope<unknown> };
