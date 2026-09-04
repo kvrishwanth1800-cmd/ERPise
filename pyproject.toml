@@ -1,0 +1,29 @@
+[project]
+name = "erpise-application-services"
+version = "0.1.0"
+description = "Typed deterministic ERPise application service foundations"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "mypy==1.15.0",
+  "pytest==8.3.4",
+  "ruff==0.9.6"
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+strict = true
+files = ["services"]
+
+[tool.pytest.ini_options]
+testpaths = ["services"]
+python_files = ["test_*.py"]
+pythonpath = ["services/foundation/src"]
