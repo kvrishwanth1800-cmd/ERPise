@@ -9,10 +9,7 @@ export const CONTRACT_VERSION_V1 = 'v1' as const;
 
 export type SupportedContractVersion = typeof CONTRACT_VERSION_V1;
 
-export type ProblemCode =
-  | 'invalid_command'
-  | 'unsupported_contract_version'
-  | 'invalid_event';
+export type ProblemCode = 'invalid_command' | 'unsupported_contract_version' | 'invalid_event';
 
 export interface ProblemDetail {
   readonly code: ProblemCode;
