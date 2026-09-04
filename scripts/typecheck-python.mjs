@@ -1,9 +1,10 @@
 import { spawnSync } from 'node:child_process';
+import { exit, stderr, stdout } from 'node:process';
 
 const result = spawnSync('uv', ['run', 'mypy'], { encoding: 'utf8' });
 
-process.stdout.write(result.stdout);
-process.stderr.write(result.stderr);
+stdout.write(result.stdout);
+stderr.write(result.stderr);
 
 if (result.status !== 0) {
   const output = `${result.stdout}${result.stderr}`;
@@ -11,9 +12,9 @@ if (result.status !== 0) {
     const match = line.match(/^(?<path>[^:]+):(?<line>\d+): error: (?<message>.+?)(?:\s+\[[^\]]+\])?$/);
     if (match?.groups) {
       const { path, line: lineNumber, message } = match.groups;
-      console.log(`::error file=${path},line=${lineNumber},title=MyPy::${message}`);
+      stdout.write(`::error file=${path},line=${lineNumber},title=MyPy::${message}\n`);
     }
   }
 }
 
-process.exit(result.status ?? 1);
+exit(result.status ?? 1);
