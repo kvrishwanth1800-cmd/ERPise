@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from foundation.organization import ScopeContext
 
@@ -58,7 +58,9 @@ class SessionRevocationService:
 class AuthorizationService:
     """Evaluates explicit scoped grants and rejects conflicting duty assignments."""
 
-    _conflicting_duties = frozenset({"requester", "approver", "payer", "bank-editor", "reconciler"})
+    _conflicting_duties = frozenset(
+        {"requester", "approver", "payer", "bank-editor", "reconciler"}
+    )
 
     def __init__(self, session_revocations: SessionRevocationService) -> None:
         self._session_revocations = session_revocations
@@ -119,7 +121,10 @@ class AuthorizationService:
         if grant.action != action:
             return False
         if organization_id is not None:
-            if organization_id not in scope.authorized_organization_ids and not scope.is_tenant_administrator:
+            if (
+                organization_id not in scope.authorized_organization_ids
+                and not scope.is_tenant_administrator
+            ):
                 return False
             if grant.organization_ids and organization_id not in grant.organization_ids:
                 return False
