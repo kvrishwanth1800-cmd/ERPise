@@ -63,9 +63,7 @@ export function validateCommandEnvelope(
   return { ok: true, value: value as CommandEnvelope<unknown> };
 }
 
-export function validateDomainEvent(
-  value: unknown
-): ValidationResult<DomainEvent<unknown>> {
+export function validateDomainEvent(value: unknown): ValidationResult<DomainEvent<unknown>> {
   if (!isRecord(value)) {
     return invalidEvent('A domain event must be an object.');
   }
