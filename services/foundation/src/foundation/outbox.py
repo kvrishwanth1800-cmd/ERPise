@@ -98,7 +98,9 @@ class TransactionalOutbox:
     def _validate_event(event: DomainEvent) -> None:
         required_values = (event.version, event.event_id, event.event_type, event.trace_id)
         if any(not value for value in required_values):
-            raise OutboxValidationError("Committed events require version, identifiers, and trace context.")
+            raise OutboxValidationError(
+                "Committed events require version, identifiers, and trace context."
+            )
         if event.occurred_at.tzinfo is None:
             raise OutboxValidationError("Committed event times must be timezone-aware.")
 
@@ -147,7 +149,9 @@ class ReplaySafeConsumer:
         results: list[ProjectionResult] = []
         for event in events:
             if event.event_id in self._processed_event_ids:
-                results.append(ProjectionResult(event_id=event.event_id, replay=True, applied=False))
+                results.append(
+                    ProjectionResult(event_id=event.event_id, replay=True, applied=False)
+                )
                 continue
             apply_projection(self.projection, event)
             self._processed_event_ids.add(event.event_id)
