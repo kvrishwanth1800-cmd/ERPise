@@ -65,9 +65,7 @@ export function validateDomainEvent(value: unknown): ValidationResult<DomainEven
   }
   for (const field of ['eventId', 'eventType', 'occurredAt', 'traceId']) {
     if (!isNonEmptyString(value[field])) {
-      return invalidEvent(
-        `Domain event field ${field} must be a non-empty string.`
-      );
+      return invalidEvent(`Domain event field ${field} must be a non-empty string.`);
     }
   }
   return { ok: true, value: value as DomainEvent<unknown> };
