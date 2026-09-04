@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { format } from 'prettier';
+import { format, resolveConfig } from 'prettier';
 
 const targets = [
   'packages/**/*.{ts,tsx,js,mjs,json}',
@@ -16,7 +16,8 @@ const check = spawnSync('pnpm', ['exec', 'prettier', '--check', ...targets], {
 if (check.status !== 0) {
   const path = 'packages/contracts/src/index.ts';
   const source = readFileSync(path, 'utf8');
-  const canonical = await format(source, { filepath: path });
+  const options = await resolveConfig(path);
+  const canonical = await format(source, { ...options, filepath: path });
   const sourceLines = source.split('\n');
   const canonicalLines = canonical.split('\n');
   const changes = canonicalLines
