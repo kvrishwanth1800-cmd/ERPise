@@ -22,7 +22,12 @@ def test_trace_evidence_correlates_a_tenant_request_to_v1_event(
     operations_service: OperationsEvidenceService,
 ) -> None:
     evidence = operations_service.record_trace_evidence(
-        f"evidence-{uuid4()}", "tenant-a", "trace-a", "event-a", "order.committed", "v1"
+        f"evidence-{uuid4()}",
+        "tenant-a",
+        "trace-a",
+        "event-a",
+        "order.committed",
+        "v1",
     )
 
     assert operations_service.trace_evidence("tenant-a", "trace-a") == (evidence,)
@@ -34,14 +39,26 @@ def test_breached_objective_creates_an_actionable_alert(
     operations_service: OperationsEvidenceService,
 ) -> None:
     alert = operations_service.evaluate_objective(
-        f"alert-{uuid4()}", "tenant-a", "event-lag-seconds", 61.0, 60.0, "trace-a", "replay pending events"
+        f"alert-{uuid4()}",
+        "tenant-a",
+        "event-lag-seconds",
+        61.0,
+        60.0,
+        "trace-a",
+        "replay pending events",
     )
 
     assert alert is not None
     assert alert.action == "replay pending events"
     assert (
         operations_service.evaluate_objective(
-            f"alert-{uuid4()}", "tenant-a", "event-lag-seconds", 60.0, 60.0, "trace-a", "ignore"
+            f"alert-{uuid4()}",
+            "tenant-a",
+            "event-lag-seconds",
+            60.0,
+            60.0,
+            "trace-a",
+            "ignore",
         )
         is None
     )
@@ -69,7 +86,11 @@ def test_telemetry_redacts_secrets_and_card_data(operations_service: OperationsE
         f"telemetry-{uuid4()}",
         "tenant-a",
         "trace-a",
-        {"api_token": "secret-value", "message": "card 4111 1111 1111 1111", "safe": "value"},
+        {
+            "api_token": "secret-value",
+            "message": "card 4111 1111 1111 1111",
+            "safe": "value",
+        },
     )
 
     assert operations_service.telemetry_details("tenant-a", "trace-a") == {

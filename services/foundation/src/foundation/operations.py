@@ -8,7 +8,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
@@ -90,7 +89,15 @@ class OperationsEvidenceService:
             {},
             occurred_at,
         )
-        return TraceEvidence(evidence_id, tenant_id, trace_id, event_id, event_type, event_version, occurred_at)
+        return TraceEvidence(
+            evidence_id,
+            tenant_id,
+            trace_id,
+            event_id,
+            event_type,
+            event_version,
+            occurred_at,
+        )
 
     def record_telemetry(
         self,
@@ -185,7 +192,12 @@ class OperationsEvidenceService:
             occurred_at,
         )
         return RestoreExercise(
-            evidence_id, tenant_id, trace_id, data_restored, service_behavior_restored, occurred_at
+            evidence_id,
+            tenant_id,
+            trace_id,
+            data_restored,
+            service_behavior_restored,
+            occurred_at,
         )
 
     def trace_evidence(self, tenant_id: str, trace_id: str) -> tuple[TraceEvidence, ...]:
@@ -276,9 +288,7 @@ class OperationsEvidenceService:
     @classmethod
     def _redact(cls, telemetry: Mapping[str, object]) -> dict[str, object]:
         return {
-            key: "[REDACTED]"
-            if cls._secret_key.search(key)
-            else cls._redact_value(value)
+            key: "[REDACTED]" if cls._secret_key.search(key) else cls._redact_value(value)
             for key, value in telemetry.items()
         }
 
