@@ -53,7 +53,7 @@ export function validateCommandEnvelope(
       return invalidCommand(`Command envelope field ${field} must be a non-empty string.`);
     }
   }
-  return { ok: true, value: value as CommandEnvelope<unknown> };
+  return { ok: true, value: value as unknown as CommandEnvelope<unknown> };
 }
 
 export function validateDomainEvent(value: unknown): ValidationResult<DomainEvent<unknown>> {
@@ -68,7 +68,7 @@ export function validateDomainEvent(value: unknown): ValidationResult<DomainEven
       return invalidEvent(`Domain event field ${field} must be a non-empty string.`);
     }
   }
-  return { ok: true, value: value as DomainEvent<unknown> };
+  return { ok: true, value: value as unknown as DomainEvent<unknown> };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
