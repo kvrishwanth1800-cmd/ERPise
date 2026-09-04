@@ -8,6 +8,7 @@
     "format:write": "prettier --write \"packages/**/*.{ts,tsx,js,mjs,json}\" \"package.json\" \"eslint.config.mjs\" \"tsconfig.json\"",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "typecheck:python": "node scripts/typecheck-python.mjs",
     "test": "vitest run",
     "verify": "pnpm format && pnpm lint && pnpm typecheck && pnpm test"
   },
