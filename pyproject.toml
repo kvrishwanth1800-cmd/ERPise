@@ -22,6 +22,7 @@ select = ["E", "F", "I", "UP"]
 [tool.mypy]
 strict = true
 files = ["services"]
+mypy_path = ["services/foundation/src"]
 
 [tool.pytest.ini_options]
 testpaths = ["services"]
