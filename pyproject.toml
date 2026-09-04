@@ -3,13 +3,15 @@ name = "erpise-application-services"
 version = "0.1.0"
 description = "Typed deterministic ERPise application service foundations"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "psycopg[binary]==3.2.6",
+]
 
 [dependency-groups]
 dev = [
   "mypy==1.15.0",
   "pytest==8.3.4",
-  "ruff==0.9.6"
+  "ruff==0.9.6",
 ]
 
 [tool.ruff]
@@ -28,3 +30,6 @@ mypy_path = ["services/foundation/src"]
 testpaths = ["services"]
 python_files = ["test_*.py"]
 pythonpath = ["services/foundation/src"]
+markers = [
+  "integration: requires the local PostgreSQL foundation service",
+]
