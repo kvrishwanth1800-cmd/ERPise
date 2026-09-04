@@ -48,7 +48,15 @@ jobs:
       - name: Lint Python workspace
         run: uv run ruff check services --output-format=github
       - name: Type-check Python workspace
-        run: uv run mypy
+        run: |
+          set -o pipefail
+          uv run mypy 2>&1 | tee /tmp/mypy.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "Python type-check failures:"
+            tail -n 100 /tmp/mypy.log
+          fi
+          exit "$status"
       - name: Test Python workspace
         run: uv run pytest services
       - uses: hashicorp/setup-terraform@v3
