@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "packageManager": "pnpm@9.15.5",
   "scripts": {
-    "format": "prettier --check \"packages/**/*.{ts,tsx,js,mjs,json}\" \"package.json\" \"eslint.config.mjs\" \"tsconfig.json\"",
+    "format": "node scripts/check-format.mjs",
     "format:write": "prettier --write \"packages/**/*.{ts,tsx,js,mjs,json}\" \"package.json\" \"eslint.config.mjs\" \"tsconfig.json\"",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
