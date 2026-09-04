@@ -48,12 +48,7 @@ export function validateCommandEnvelope(
   if (value.version !== CONTRACT_VERSION_V1) {
     return unsupportedVersion();
   }
-  for (const field of [
-    'commandId',
-    'commandType',
-    'traceId',
-    'idempotencyKey'
-  ]) {
+  for (const field of ['commandId', 'commandType', 'traceId', 'idempotencyKey']) {
     if (!isNonEmptyString(value[field])) {
       return invalidCommand(
         `Command envelope field ${field} must be a non-empty string.`
