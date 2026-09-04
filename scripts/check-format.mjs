@@ -16,5 +16,9 @@ if (check.status !== 0) {
   spawnSync('pnpm', ['exec', 'prettier', '--list-different', ...targets], {
     stdio: 'inherit'
   });
+  spawnSync('pnpm', ['exec', 'prettier', '--write', ...targets], {
+    stdio: 'inherit'
+  });
+  spawnSync('git', ['diff', '--', ...targets], { stdio: 'inherit' });
   process.exit(check.status ?? 1);
 }
