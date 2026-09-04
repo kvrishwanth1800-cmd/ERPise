@@ -40,7 +40,7 @@ def test_commit_stages_state_and_outbox_record_together() -> None:
     assert result is None
     assert outbox.state == {"order-a": "committed"}
     assert outbox.records[0].event.event_id == "event-a"
-    assert outbox.pending_records[0].record_id == "outbox-event-a"
+    assert outbox.pending_records()[0].record_id == "outbox-event-a"
 
 
 def test_failed_state_operation_does_not_commit_an_outbox_record() -> None:
