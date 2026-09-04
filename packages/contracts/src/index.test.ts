@@ -4,14 +4,14 @@ import {
   CONTRACT_VERSION_V1,
   type HealthCheckResult,
   validateCommandEnvelope,
-  validateDomainEvent,
+  validateDomainEvent
 } from './index.js';
 
 describe('HealthCheckResult', () => {
   it('represents a healthy dependency', () => {
     const result: HealthCheckResult = {
       service: 'postgres',
-      status: 'healthy',
+      status: 'healthy'
     };
 
     expect(result.status).toBe('healthy');
@@ -26,7 +26,7 @@ describe('versioned command contracts', () => {
       commandType: 'organization.update',
       traceId: 'trace-1',
       idempotencyKey: 'request-1',
-      payload: { organizationId: 'org-1' },
+      payload: { organizationId: 'org-1' }
     });
 
     expect(result.ok).toBe(true);
@@ -39,12 +39,12 @@ describe('versioned command contracts', () => {
       commandType: 'organization.update',
       traceId: 'trace-1',
       idempotencyKey: '',
-      payload: {},
+      payload: {}
     });
 
     expect(result).toMatchObject({
       ok: false,
-      problem: { code: 'invalid_command' },
+      problem: { code: 'invalid_command' }
     });
   });
 
@@ -53,7 +53,7 @@ describe('versioned command contracts', () => {
 
     expect(result).toMatchObject({
       ok: false,
-      problem: { code: 'unsupported_contract_version' },
+      problem: { code: 'unsupported_contract_version' }
     });
   });
 });
@@ -66,7 +66,7 @@ describe('versioned event contracts', () => {
       eventType: 'OrganizationChanged',
       occurredAt: '2026-09-04T00:00:00Z',
       traceId: 'trace-1',
-      payload: { action: 'created' },
+      payload: { action: 'created' }
     });
 
     expect(result.ok).toBe(true);
@@ -78,12 +78,12 @@ describe('versioned event contracts', () => {
       eventId: 'event-1',
       eventType: 'OrganizationChanged',
       occurredAt: '2026-09-04T00:00:00Z',
-      payload: {},
+      payload: {}
     });
 
     expect(result).toMatchObject({
       ok: false,
-      problem: { code: 'invalid_event' },
+      problem: { code: 'invalid_event' }
     });
   });
 });

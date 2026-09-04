@@ -43,7 +43,7 @@ export type ValidationResult<TValue> =
   | { readonly ok: false; readonly problem: ProblemDetail };
 
 export function validateCommandEnvelope(
-  value: unknown,
+  value: unknown
 ): ValidationResult<CommandEnvelope<unknown>> {
   if (!isRecord(value)) {
     return invalidCommand('A command envelope must be an object.');
@@ -55,11 +55,11 @@ export function validateCommandEnvelope(
     'commandId',
     'commandType',
     'traceId',
-    'idempotencyKey',
+    'idempotencyKey'
   ]) {
     if (!isNonEmptyString(value[field])) {
       return invalidCommand(
-        `Command envelope field ${field} must be a non-empty string.`,
+        `Command envelope field ${field} must be a non-empty string.`
       );
     }
   }
@@ -67,7 +67,7 @@ export function validateCommandEnvelope(
 }
 
 export function validateDomainEvent(
-  value: unknown,
+  value: unknown
 ): ValidationResult<DomainEvent<unknown>> {
   if (!isRecord(value)) {
     return invalidEvent('A domain event must be an object.');
@@ -78,7 +78,7 @@ export function validateDomainEvent(
   for (const field of ['eventId', 'eventType', 'occurredAt', 'traceId']) {
     if (!isNonEmptyString(value[field])) {
       return invalidEvent(
-        `Domain event field ${field} must be a non-empty string.`,
+        `Domain event field ${field} must be a non-empty string.`
       );
     }
   }
@@ -96,14 +96,14 @@ function isNonEmptyString(value: unknown): value is string {
 function invalidCommand(message: string): ValidationResult<never> {
   return {
     ok: false,
-    problem: { code: 'invalid_command', message, retryable: false },
+    problem: { code: 'invalid_command', message, retryable: false }
   };
 }
 
 function invalidEvent(message: string): ValidationResult<never> {
   return {
     ok: false,
-    problem: { code: 'invalid_event', message, retryable: false },
+    problem: { code: 'invalid_event', message, retryable: false }
   };
 }
 
@@ -113,7 +113,7 @@ function unsupportedVersion(): ValidationResult<never> {
     problem: {
       code: 'unsupported_contract_version',
       message: 'The contract version is not supported.',
-      retryable: false,
-    },
+      retryable: false
+    }
   };
 }
