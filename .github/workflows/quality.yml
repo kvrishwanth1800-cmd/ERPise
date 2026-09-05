@@ -64,7 +64,9 @@ jobs:
           cargo fmt --check || {
             cargo fmt
             git diff -- crates > rustfmt.diff
-            cat rustfmt.diff
+            while IFS= read -r line; do
+              printf '::error title=Rust formatter drift::%s\n' "$line"
+            done < rustfmt.diff
             exit 1
           }
       - name: Upload Rust formatter diff
