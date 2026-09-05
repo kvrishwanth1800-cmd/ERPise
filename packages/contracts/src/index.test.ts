@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import type { EdgeOperationReconciled, EdgeSyncEnvelope } from './edge.js';
 import {
   CONTRACT_VERSION_V1,
-  type EdgeOperationReconciled,
-  type EdgeSyncEnvelope,
   type HealthCheckResult,
   validateCommandEnvelope,
   validateDomainEvent
@@ -29,6 +28,7 @@ describe('versioned command contracts', () => {
       idempotencyKey: 'request-1',
       payload: { organizationId: 'org-1' }
     });
+
     expect(result.ok).toBe(true);
   });
 
@@ -41,6 +41,7 @@ describe('versioned command contracts', () => {
       idempotencyKey: '',
       payload: {}
     });
+
     expect(result).toMatchObject({
       ok: false,
       problem: { code: 'invalid_command' }
@@ -49,6 +50,7 @@ describe('versioned command contracts', () => {
 
   it('rejects an unsupported command version', () => {
     const result = validateCommandEnvelope({ version: 'v2' });
+
     expect(result).toMatchObject({
       ok: false,
       problem: { code: 'unsupported_contract_version' }
@@ -66,6 +68,7 @@ describe('versioned event contracts', () => {
       traceId: 'trace-1',
       payload: { action: 'created' }
     });
+
     expect(result.ok).toBe(true);
   });
 
@@ -77,6 +80,7 @@ describe('versioned event contracts', () => {
       occurredAt: '2026-09-04T00:00:00Z',
       payload: {}
     });
+
     expect(result).toMatchObject({
       ok: false,
       problem: { code: 'invalid_event' }
@@ -108,6 +112,7 @@ describe('edge synchronization contracts', () => {
       outcome: 'DUPLICATE',
       diagnostic: 'already committed'
     };
+
     expect(reconciled.outcome).toBe('DUPLICATE');
   });
 });
