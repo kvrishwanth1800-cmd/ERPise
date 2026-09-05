@@ -2,23 +2,25 @@ name: Edge sync validation
 
 on:
   push:
-    branches:
-      - feature/**
-
-permissions:
-  contents: read
+    branches: [feature/phase-1-foundation-rc]
+    paths:
+      - "crates/edge-sync/**"
+      - "crates/edge-sync-reconciliation/**"
+      - "Cargo.toml"
+      - ".github/workflows/edge-sync-validation.yml"
+  pull_request:
+    paths:
+      - "crates/edge-sync/**"
+      - "crates/edge-sync-reconciliation/**"
+      - "Cargo.toml"
+      - ".github/workflows/edge-sync-validation.yml"
 
 jobs:
-  edge-sync:
-    runs-on: ubuntu-24.04
+  validate:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85.0
-        with:
-          components: rustfmt, clippy
-      - name: Run edge-sync baseline tests
-        run: cargo test -p edge-sync
-      - name: Verify edge-sync formatting
-        run: cargo fmt --check -p edge-sync
-      - name: Lint edge-sync
-        run: cargo clippy -p edge-sync --all-targets -- -D warnings
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test -p edge-sync -p edge-sync-reconciliation
+      - run: cargo fmt --check --all
+      - run: cargo clippy --workspace --all-targets -- -D warnings

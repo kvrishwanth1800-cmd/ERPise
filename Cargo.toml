@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/transaction-core", "crates/edge-sync"]
+members = ["crates/transaction-core", "crates/edge-sync", "crates/edge-sync-reconciliation"]
 
 [workspace.package]
 edition = "2021"
