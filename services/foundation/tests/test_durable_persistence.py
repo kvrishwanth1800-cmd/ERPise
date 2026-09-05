@@ -11,7 +11,6 @@ import pytest
 
 from foundation.persistence import DurableFoundationStore
 
-
 MIGRATIONS = Path(__file__).parents[1] / "migrations"
 DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 
@@ -81,9 +80,23 @@ def test_audit_is_append_only_and_authorization_grants_are_durable(
     database: psycopg.Connection[object],
 ) -> None:
     store = DurableFoundationStore(database)
-    store.grant("grant-1", "principal-1", "tenant-a", "order.read", {"store"}, {"order-1"})
+    store.grant(
+        "grant-1",
+        "principal-1",
+        "tenant-a",
+        "order.read",
+        {"store"},
+        {"order-1"},
+    )
     audit_id = store.record_audit(
-        "tenant-a", "principal-1", "role", "order", "read", "policy", "trace-a", "allowed"
+        "tenant-a",
+        "principal-1",
+        "role",
+        "order",
+        "read",
+        "policy",
+        "trace-a",
+        "allowed",
     )
 
     with database.cursor() as cursor:
@@ -104,7 +117,8 @@ def test_organization_delete_is_protected_by_operational_dependency(
     with database.cursor() as cursor:
         cursor.execute(
             "INSERT INTO organization_operational_dependencies "
-            "(dependency_id, tenant_id, organization_id) VALUES ('dep-1', 'tenant-a', 'root')"
+            "(dependency_id, tenant_id, organization_id) "
+            "VALUES ('dep-1', 'tenant-a', 'root')"
         )
     database.commit()
 
@@ -142,7 +156,9 @@ def test_concurrent_creates_keep_one_organization_and_one_outbox_event(
     with database.cursor() as cursor:
         cursor.execute("SELECT count(*) FROM organizations WHERE organization_id = 'root'")
         assert cursor.fetchone() == (1,)
-        cursor.execute("SELECT count(*) FROM hierarchy_outbox_records WHERE organization_id = 'root'")
+        cursor.execute(
+            "SELECT count(*) FROM hierarchy_outbox_records WHERE organization_id = 'root'"
+        )
         assert cursor.fetchone() == (1,)
     assert sorted(outcomes) == ["created", "rejected"]
 
