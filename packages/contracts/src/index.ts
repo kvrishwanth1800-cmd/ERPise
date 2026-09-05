@@ -90,13 +90,17 @@ export function validateCommandEnvelope(
     'idempotencyKey'
   ]) {
     if (!isNonEmptyString(value[field])) {
-      return invalidCommand(`Command envelope field ${field} must be a non-empty string.`);
+      return invalidCommand(
+        `Command envelope field ${field} must be a non-empty string.`
+      );
     }
   }
   return { ok: true, value: value as unknown as CommandEnvelope<unknown> };
 }
 
-export function validateDomainEvent(value: unknown): ValidationResult<DomainEvent<unknown>> {
+export function validateDomainEvent(
+  value: unknown
+): ValidationResult<DomainEvent<unknown>> {
   if (!isRecord(value)) {
     return invalidEvent('A domain event must be an object.');
   }
@@ -105,7 +109,9 @@ export function validateDomainEvent(value: unknown): ValidationResult<DomainEven
   }
   for (const field of ['eventId', 'eventType', 'occurredAt', 'traceId']) {
     if (!isNonEmptyString(value[field])) {
-      return invalidEvent(`Domain event field ${field} must be a non-empty string.`);
+      return invalidEvent(
+        `Domain event field ${field} must be a non-empty string.`
+      );
     }
   }
   return { ok: true, value: value as unknown as DomainEvent<unknown> };
