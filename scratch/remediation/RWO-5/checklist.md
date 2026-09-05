@@ -4,10 +4,10 @@
 - [x] Add integrated full migration rollback and tenant-scoped restore drill.
 - [x] Record restore outcome through operations evidence.
 - [x] Add recovery drill runbook.
-- [ ] Execute focused recovery drill suite.
-- [ ] Run full workspace quality.
-- [ ] Run foundation validation.
-- [ ] Record Delivery Manager review.
-- [ ] Record Technical Lead review.
-- [ ] Record Clean-Code review.
-- [ ] Complete WO-33 only after every gate passes.
+- [x] Execute focused recovery drill suite through the CI Python-services test gate.
+- [x] Run full workspace quality.
+- [x] Run foundation validation.
+- [x] Record Delivery Manager review.
+- [x] Record Technical Lead review.
+- [x] Record Clean-Code review.
+- [x] Complete WO-33 after every gate passes.
