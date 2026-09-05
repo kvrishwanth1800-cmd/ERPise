@@ -21,6 +21,9 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+"services/foundation/tests/test_durable_persistence.py" = ["E501"]
+
 [tool.mypy]
 strict = true
 files = ["services"]
