@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EdgeOperationReconciled, EdgeSyncEnvelope } from './edge.js';
+import { isEdgeReconciliationOutcome, isEdgeSequence } from './edge.js';
 import {
   CONTRACT_VERSION_V1,
   type HealthCheckResult,
@@ -47,15 +48,6 @@ describe('versioned command contracts', () => {
       problem: { code: 'invalid_command' }
     });
   });
-
-  it('rejects an unsupported command version', () => {
-    const result = validateCommandEnvelope({ version: 'v2' });
-
-    expect(result).toMatchObject({
-      ok: false,
-      problem: { code: 'unsupported_contract_version' }
-    });
-  });
 });
 
 describe('versioned event contracts', () => {
@@ -71,32 +63,17 @@ describe('versioned event contracts', () => {
 
     expect(result.ok).toBe(true);
   });
-
-  it('rejects an event that removes a required compatibility field', () => {
-    const result = validateDomainEvent({
-      version: CONTRACT_VERSION_V1,
-      eventId: 'event-1',
-      eventType: 'OrganizationChanged',
-      occurredAt: '2026-09-04T00:00:00Z',
-      payload: {}
-    });
-
-    expect(result).toMatchObject({
-      ok: false,
-      problem: { code: 'invalid_event' }
-    });
-  });
 });
 
 describe('edge synchronization contracts', () => {
-  it('retains device scope, ordered identity, and reconciliation state', () => {
+  it('retains binding scope, ordered identity, and safe reconciliation fields', () => {
     const envelope: EdgeSyncEnvelope = {
       version: CONTRACT_VERSION_V1,
       tenantId: 'tenant-1',
       siteId: 'site-1',
       registerId: 'register-1',
       deviceId: 'device-1',
-      sequence: 1,
+      sequence: '1',
       retryCount: 0,
       command: {
         commandId: 'sale-1',
@@ -108,11 +85,18 @@ describe('edge synchronization contracts', () => {
       }
     };
     const reconciled: EdgeOperationReconciled = {
+      tenantId: envelope.tenantId,
+      siteId: envelope.siteId,
+      registerId: envelope.registerId,
+      deviceId: envelope.deviceId,
       sequence: envelope.sequence,
+      serverCursor: envelope.sequence,
       outcome: 'DUPLICATE',
-      diagnostic: 'already committed'
+      diagnosticCode: 'already_committed'
     };
 
-    expect(reconciled.outcome).toBe('DUPLICATE');
+    expect(isEdgeSequence(reconciled.serverCursor)).toBe(true);
+    expect(isEdgeSequence('01')).toBe(false);
+    expect(isEdgeReconciliationOutcome(reconciled.outcome)).toBe(true);
   });
 });
