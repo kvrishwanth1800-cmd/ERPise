@@ -5,7 +5,10 @@
 - [x] Record the baseline focused validation commands and successful exit codes.
 - [x] Record the first incremental validation failure before remediation.
 - [x] Classify the failure before remediation.
-- [ ] Record successful focused validation after the formatter remediation.
+- [x] Isolate the failing formatter package as `edge-sync-reconciliation`.
+- [x] Identify missing toolchain pinning and missing CI formatter-diff evidence as configuration risks.
+- [ ] Execute and record the pinned-toolchain formatter diagnostic sequence.
+- [ ] Record successful focused validation after root-cause remediation.
 
 ## RWO-4 behavior evidence
 

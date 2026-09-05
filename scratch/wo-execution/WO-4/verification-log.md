@@ -3,7 +3,7 @@
 ## Baseline
 
 - Dependency: WO-31 is complete. The durable outbox and Redpanda delivery validation passed before RWO-4 began.
-- Existing edge runtime: `crates/edge-sync/src/lib.rs` already provides encrypted SQLCipher-backed state, device binding, queued operation ordering, duplicate-safe reconciliation outcomes, retry scheduling, controlled recovery, freshness state, and local audit records.
+- Existing edge runtime: `crates/edge-sync/src/lib.rs` provides encrypted SQLCipher-backed state, device binding, queued operation ordering, duplicate-safe reconciliation outcomes, retry scheduling, controlled recovery, freshness state, and local audit records.
 - Evidence rule: Record the exact command, exit code, failing test, and traceback before any failure remediation. Distinguish collection, execution, environment, service configuration, database, and workspace-quality failures.
 
 ## Executed baseline evidence
@@ -14,54 +14,60 @@
 | `cargo fmt --check -p edge-sync` | 0 | Passed | Existing edge-sync source formatting passed. |
 | `cargo clippy -p edge-sync --all-targets -- -D warnings` | 0 | Passed | Existing edge-sync targets passed lint without warnings. |
 
-- CI evidence: the focused Edge sync validation workflow completed successfully for commit `09f511ba595785bdb206167863decbcff3f55529`.
-- Workflow: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33985668782
-- Failure category: none. The baseline completed successfully.
+- CI evidence: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33985668782
 
 ## Increment 1: injected reconciliation boundary
 
 - Change: Added `edge-sync-reconciliation`, an edge-side controller that dispatches the next ordered `EdgeSyncEnvelope` to an injected BFF client. No HTTP transport, credentials, or central business logic was introduced.
 - Focused behavior tests added: reconnect ordering, duplicate reconciliation, retry scheduling across restart, controlled recovery on unsafe BFF response, tenant mismatch rejection before dispatch, and online freshness after reconciliation.
 
-### Failure evidence before remediation
+## Formatter root-cause analysis: in progress
 
-| Field | Evidence |
-| --- | --- |
-| Workflow | https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33986623269 |
-| Job | https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33986623269/job/101361261595 |
-| Command | `cargo fmt --check --all` |
-| Exit code | 1 |
-| Failing test | None. The preceding `cargo test -p edge-sync -p edge-sync-reconciliation` step passed. |
-| Traceback or log | `cargo fmt --check --all` was the failed step. The workflow stopped before `cargo clippy --workspace --all-targets -- -D warnings`; GitHub did not publish a source-line formatter diff in the check annotations. |
-| Category | Quality-gate formatting failure. It is not a test, environment, database, or service-configuration failure. |
-| Proven root cause | The newly created reconciliation source was not formatted according to the repository Rust formatter. |
-| Fix | Apply formatting-only changes to `crates/edge-sync-reconciliation/src/lib.rs` in commit `29454b073a32a90f0b59a6bb1a91260816b2000c`. |
-| Prevention | Keep `cargo fmt --check --all` in focused validation and do not treat a passed test step as a full validation pass. |
+### Direct evidence collected
 
-### Post-remediation status
+| Command or observation | Exit code / result | Evidence |
+| --- | --- | --- |
+| `cargo test -p edge-sync -p edge-sync-reconciliation` | 0 | Passed in repeated focused CI runs. |
+| `cargo fmt --check -p edge-sync` | 0 | Passed in the per-package run. |
+| `cargo fmt --check -p edge-sync-reconciliation` | 1 | Failed in the per-package run. |
+| `cargo fmt -p edge-sync-reconciliation` then `git diff --exit-code -- crates/edge-sync-reconciliation` | 1 | Failed, proving the formatter modifies a committed file in the reconciliation crate. The prior workflow did not print the resulting diff. |
+| `cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings` | Not executed | Skipped after formatter failure. |
 
-- The follow-up focused validation is queued for commit `29454b073a32a90f0b59a6bb1a91260816b2000c`.
-- Workflow: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33986825314
-- No result is claimed until the workflow completes.
+- Per-package workflow: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33987094295
+- Diff diagnostic workflow: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33987433801
+- Failure category: formatter and toolchain/configuration evidence gap. It is not a test, environment, database, or service-configuration failure.
+
+### Findings before remediation
+
+- The formatter failure is limited to the RWO-4-owned reconciliation crate. `edge-sync` passes formatting.
+- CI used moving `stable` and installed Rust 1.98.1. The workspace only declared `rust-version = 1.85`; it did not pin Rust or rustfmt with `rust-toolchain.toml`.
+- No generated Rust files, build scripts, feature-dependent generated code, or macro-expansion formatting paths exist in the reconciliation crate.
+- The workflow checks a clean Actions checkout. It does not restore a source cache. The failed formatter-apply step proves the formatter creates an uncommitted source diff in CI.
+- The earlier workflow did not preserve the exact diff, tool versions, line ending state, or final recheck. No code change will be made until that diagnostic sequence runs with the pinned formatter.
+
+### Corrective action and prevention
+
+- Fix under test: pin Rust and rustfmt to 1.85.0, the declared workspace minimum, using `rust-toolchain.toml`.
+- Add regression diagnostics to CI: record tool versions and workspace metadata; run formatter check, formatter apply, `git diff --check`, scoped diff, status, and final check for the reconciliation crate.
+- The diagnostic failure remains a gate. CI succeeds only when the initial and final formatter checks, formatter apply, and diff checks all exit 0.
+- No unrelated source file has been modified by this corrective configuration commit. Changed files are the toolchain, focused workflow, and WO-4 execution documentation.
 
 ## Scope discovery
 
 - The repository has no implemented BFF, central reconciliation service, network transport, or central adapter. Its only edge contract is `packages/contracts/src/edge.ts`.
-- RWO-4 therefore adds a testable edge-side reconciliation boundary. It does not invent network transport, credentials, or new central business behavior. The boundary dispatches a locally queued `EdgeSyncEnvelope` to an injected reconciliation client and persists the returned outcome through the existing `EdgeStore::reconcile` path.
-- The central durable outbox remains RWO-3 scope. RWO-4 validates that the edge sends one ordered envelope and handles accepted, duplicate, retryable, and controlled-recovery outcomes safely.
+- RWO-4 therefore adds a testable edge-side reconciliation boundary. It does not invent network transport, credentials, or new central business behavior.
 
 ## Acceptance evidence
 
 | Criterion | Status | Evidence |
 | --- | --- | --- |
-| AC-EDG-001.1 offline permitted actions | Partial | Durable queue and retry-after-restart tests were added. The revised focused workflow is pending. |
-| AC-EDG-001.2 reconnect without duplicate effects | Partial | Ordered dispatch and duplicate reconciliation tests were added. The revised focused workflow is pending. |
+| AC-EDG-001.1 offline permitted actions | Partial | Durable queue and retry-after-restart tests exist. Pinned focused validation is pending. |
+| AC-EDG-001.2 reconnect without duplicate effects | Partial | Ordered dispatch and duplicate reconciliation tests exist. Pinned focused validation is pending. |
 | AC-EDG-001.3 operator freshness state | Partial | Online freshness is checked after reconciliation. Explicit offline and stale focused tests remain pending. |
-| AC-EDG-001.4 controlled recovery | Partial | Unsafe BFF response enters controlled recovery. The revised focused workflow is pending. |
+| AC-EDG-001.4 controlled recovery | Partial | Unsafe BFF response enters controlled recovery. Pinned focused validation is pending. |
 
 ## Lessons learned
 
 - Capture the actual failing command and complete diagnostics before changing code or configuration.
-- Validate changes in small increments and rerun relevant tests immediately.
-- Record root cause, fix, verification, and prevention for each failure.
+- Pin formatter versions before relying on formatting evidence across environments.
 - Full workspace and foundation validation are final gates. They do not replace focused acceptance evidence.
