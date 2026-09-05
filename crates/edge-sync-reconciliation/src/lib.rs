@@ -214,8 +214,7 @@ mod tests {
         assert!(store.next_pending(&binding(), 10).unwrap().is_none());
     }
 
-    #[test]
-    fn mismatched_scope_never_dispatches_to_bff() {
+    fn assert_mismatched_scope_never_dispatches(mutator: impl FnOnce(&mut DeviceBinding)) {
         let (_, mut store) = store();
         store.queue_sale(&binding(), &command("one"), 1).unwrap();
         let mut bff = FakeBff {
@@ -223,11 +222,42 @@ mod tests {
             sent: Vec::new(),
         };
         let mut mismatched = binding();
-        mismatched.tenant_id = "tenant-b".into();
+        mutator(&mut mismatched);
         let error = EdgeSynchronizationController::new(&mut store, &mut bff, 2, 60)
             .synchronize_once(&mismatched, 10)
             .unwrap_err();
         assert!(matches!(error, EdgeSyncError::DeviceNotAuthorized));
         assert!(bff.sent.is_empty());
+    }
+
+    #[test]
+    fn mismatched_scope_never_dispatches_to_bff() {
+        assert_mismatched_scope_never_dispatches(|binding| binding.tenant_id = "tenant-b".into());
+        assert_mismatched_scope_never_dispatches(|binding| binding.site_id = "site-b".into());
+        assert_mismatched_scope_never_dispatches(|binding| binding.register_id = "register-b".into());
+        assert_mismatched_scope_never_dispatches(|binding| binding.device_id = "device-b".into());
+        assert_mismatched_scope_never_dispatches(|binding| binding.credential_id = "credential-b".into());
+    }
+
+    #[test]
+    fn freshness_reports_offline_and_stale_states() {
+        let (_, store) = store();
+        assert_eq!(
+            store.freshness(false, 10, 60).unwrap().state,
+            FreshnessState::Offline
+        );
+        assert_eq!(
+            store.freshness(true, 10, 60).unwrap().state,
+            FreshnessState::Stale
+        );
+    }
+
+    #[test]
+    fn rollback_requires_controlled_recovery() {
+        let (_, store) = store();
+        assert!(matches!(
+            store.rollback_migration(),
+            Err(EdgeSyncError::ControlledRecoveryRequired)
+        ));
     }
 }
