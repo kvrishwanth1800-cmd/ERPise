@@ -27,6 +27,17 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
+      redpanda:
+        image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
+        ports:
+          - 19092:19092
+        options: >-
+          --health-cmd "rpk cluster health --api-urls localhost:9644"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+        env:
+          REDPANDA_AUTO_CREATE_TOPICS_ENABLED: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -57,6 +68,7 @@ jobs:
       - name: Test Python workspace
         env:
           TEST_DATABASE_URL: postgresql://erpise:change-me-local-only@localhost:5432/erpise
+          TEST_REDPANDA_BOOTSTRAP_SERVERS: localhost:19092
         run: uv run pytest services
       - uses: dtolnay/rust-toolchain@1.85.0
         with:

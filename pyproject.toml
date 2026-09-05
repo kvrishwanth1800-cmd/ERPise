@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Typed deterministic ERPise application service foundations"
 requires-python = ">=3.12"
 dependencies = [
+  "kafka-python==2.0.2",
   "psycopg[binary]==3.2.6",
 ]
 
@@ -23,11 +24,17 @@ select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "services/foundation/tests/test_durable_persistence.py" = ["E501"]
+"services/foundation/tests/test_durable_outbox.py" = ["E501"]
+"services/foundation/tests/test_redpanda_outbox.py" = ["E501"]
 
 [tool.mypy]
 strict = true
 files = ["services"]
 mypy_path = ["services/foundation/src"]
+
+[[tool.mypy.overrides]]
+module = ["kafka", "kafka.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["services"]
@@ -35,4 +42,5 @@ python_files = ["test_*.py"]
 pythonpath = ["services/foundation/src"]
 markers = [
   "integration: requires the local PostgreSQL foundation service",
+  "redpanda: requires the Redpanda Kafka service",
 ]
