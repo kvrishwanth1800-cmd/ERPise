@@ -19,14 +19,11 @@ for (const path of targets) {
   const options = await resolveConfig(path);
   const canonical = await format(source, { ...options, filepath: path });
   if (source !== canonical) {
-    mismatches.push({ path, canonical });
+    mismatches.push(path);
   }
 }
 
 if (mismatches.length > 0) {
-  for (const mismatch of mismatches) {
-    process.stderr.write(`FORMAT_MISMATCH=${mismatch.path}\n`);
-    process.stderr.write(`CANONICAL_CONTENT_START\n${mismatch.canonical}CANONICAL_CONTENT_END\n`);
-  }
+  process.stderr.write(`FORMAT_MISMATCHES=${mismatches.join(',')}\n`);
   process.exit(1);
 }
