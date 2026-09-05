@@ -74,9 +74,7 @@ export type ValidationResult<TValue> =
   | { readonly ok: true; readonly value: TValue }
   | { readonly ok: false; readonly problem: ProblemDetail };
 
-export function validateCommandEnvelope(
-  value: unknown
-): ValidationResult<CommandEnvelope<unknown>> {
+export function validateCommandEnvelope(value: unknown): ValidationResult<CommandEnvelope<unknown>> {
   if (!isRecord(value)) {
     return invalidCommand('A command envelope must be an object.');
   }
@@ -98,9 +96,7 @@ export function validateCommandEnvelope(
   return { ok: true, value: value as unknown as CommandEnvelope<unknown> };
 }
 
-export function validateDomainEvent(
-  value: unknown
-): ValidationResult<DomainEvent<unknown>> {
+export function validateDomainEvent(value: unknown): ValidationResult<DomainEvent<unknown>> {
   if (!isRecord(value)) {
     return invalidEvent('A domain event must be an object.');
   }
