@@ -16,4 +16,6 @@
 
 - Work order: RWO-1 / WO-34.
 - Baseline commit: `cc0a35248063a9fadd22ca8e4b3e9bd523c1468e`.
+- Evidence package commit: `42946467154a68a1e576a87f486493d61b85eafb`.
+- Candidate validation branch: `feature/phase-1-foundation-rc`.
 - Prior quality evidence: Workspace quality run 33950095685 and Foundation validation run 33950095701.
