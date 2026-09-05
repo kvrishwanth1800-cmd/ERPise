@@ -55,6 +55,8 @@ jobs:
       - name: Type-check Python workspace
         run: pnpm typecheck:python
       - name: Test Python workspace
+        env:
+          TEST_DATABASE_URL: postgresql://erpise:change-me-local-only@localhost:5432/erpise
         run: uv run pytest services
       - uses: dtolnay/rust-toolchain@1.85.0
         with:
