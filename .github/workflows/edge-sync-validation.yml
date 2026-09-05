@@ -1,0 +1,24 @@
+name: Edge sync validation
+
+on:
+  push:
+    branches:
+      - feature/**
+
+permissions:
+  contents: read
+
+jobs:
+  edge-sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          components: rustfmt, clippy
+      - name: Run edge-sync baseline tests
+        run: cargo test -p edge-sync
+      - name: Verify edge-sync formatting
+        run: cargo fmt --check -p edge-sync
+      - name: Lint edge-sync
+        run: cargo clippy -p edge-sync --all-targets -- -D warnings
