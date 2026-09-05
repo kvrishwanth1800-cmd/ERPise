@@ -57,14 +57,14 @@ jobs:
           test "$recheck_exit" -eq 0
       - name: Test edge crates
         run: cargo test -p edge-sync -p edge-sync-reconciliation
-      - name: Lint edge crates and annotate failures
+      - name: Lint edge crates
         run: |
-          set +e
-          output=$(cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings 2>&1)
-          exit_code=$?
-          printf '%s\n' "$output"
-          if [ "$exit_code" -ne 0 ]; then
-            compact=$(printf '%s' "$output" | tail -n 25 | tr '\n' ' ' | sed 's/::/%3A%3A/g')
-            echo "::error title=Edge clippy failure::$compact"
-          fi
-          exit "$exit_code"
+          set -o pipefail
+          cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings 2>&1 | tee clippy.stderr.log
+      - name: Upload complete Clippy stderr
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-clippy-stderr
+          path: clippy.stderr.log
+          if-no-files-found: error

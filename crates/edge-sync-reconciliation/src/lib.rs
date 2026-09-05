@@ -13,8 +13,10 @@ use edge_sync::{
 /// A BFF-facing client. Implementations send exactly the supplied envelope and
 /// return the BFF's bounded reconciliation outcome.
 pub trait BffReconciliationClient {
-    fn reconcile(&mut self, envelope: &EdgeSyncEnvelope)
-        -> std::result::Result<EdgeOperationReconciled, BffReconciliationError>;
+    fn reconcile(
+        &mut self,
+        envelope: &EdgeSyncEnvelope,
+    ) -> std::result::Result<EdgeOperationReconciled, BffReconciliationError>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -155,12 +157,13 @@ mod tests {
             ]),
             sent: Vec::new(),
         };
-        let mut controller = EdgeSynchronizationController::new(&mut store, &mut bff, 2, 60);
 
-        assert!(controller.synchronize_once(&binding(), 10).unwrap());
-        assert!(controller.synchronize_once(&binding(), 11).unwrap());
-        assert!(!controller.synchronize_once(&binding(), 12).unwrap());
-        drop(controller);
+        {
+            let mut controller = EdgeSynchronizationController::new(&mut store, &mut bff, 2, 60);
+            assert!(controller.synchronize_once(&binding(), 10).unwrap());
+            assert!(controller.synchronize_once(&binding(), 11).unwrap());
+            assert!(!controller.synchronize_once(&binding(), 12).unwrap());
+        }
 
         assert_eq!(
             bff.sent.iter().map(|item| item.sequence).collect::<Vec<_>>(),

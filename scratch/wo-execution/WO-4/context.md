@@ -9,11 +9,11 @@ It does not introduce a network transport, production credentials, or central du
 ## Dependency and configuration findings
 
 - The Rust workspace members are `transaction-core`, `edge-sync`, and `edge-sync-reconciliation`.
-- `edge-sync` uses bundled SQLCipher through `rusqlite`. The reconciliation crate depends only on `edge-sync` and has no generated sources or macro-expansion build step.
-- The repository has `rustfmt.toml` with edition 2021 and `max_width = 120`.
-- Before this analysis, CI selected moving `stable`, which installed Rust 1.98.1. No `rust-toolchain.toml` existed, so local and CI formatter versions were not pinned or proven aligned.
-- Repeated formatter failures were isolated to `edge-sync-reconciliation`. `edge-sync` formatting and all focused test commands passed. The CI output did not expose the required formatter diff.
-- RWO-4 now pins Rust 1.85.0, the workspace declared minimum Rust version, and captures formatter check, formatter apply, diff, status, and recheck evidence in CI before any further code remediation.
+- `edge-sync` uses bundled SQLCipher through `rusqlite`. The reconciliation crate depends only on `edge-sync`; it has no generated sources, build scripts, macro-expansion path, or additional runtime dependency.
+- `rustfmt.toml` sets edition 2021 and `max_width = 120`.
+- A prior CI job used moving Rust stable 1.98.1. Rust, Cargo, Clippy, and rustfmt are now pinned to 1.85.0, the workspace minimum, by `rust-toolchain.toml` and the focused workflow.
+- The pinned formatter diagnostic passed in a clean Actions checkout without a restored source cache. The earlier formatter failure is therefore recorded as toolchain drift. The historical 1.98.1 generated diff was not retained by the older job logs.
+- The complete Clippy diagnostic identified `clippy::drop_non_drop` at `crates/edge-sync-reconciliation/src/lib.rs:152`. This is RWO-4-owned test code. It is unrelated to SQLCipher, the BFF boundary, or any third-party dependency.
 
 ## Source documents
 

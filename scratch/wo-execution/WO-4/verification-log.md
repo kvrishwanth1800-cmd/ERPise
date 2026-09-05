@@ -2,72 +2,78 @@
 
 ## Baseline
 
-- Dependency: WO-31 is complete. The durable outbox and Redpanda delivery validation passed before RWO-4 began.
+- Dependency: WO-31 is complete. Durable outbox and Redpanda delivery validation passed before RWO-4 began.
 - Existing edge runtime: `crates/edge-sync/src/lib.rs` provides encrypted SQLCipher-backed state, device binding, queued operation ordering, duplicate-safe reconciliation outcomes, retry scheduling, controlled recovery, freshness state, and local audit records.
-- Evidence rule: Record the exact command, exit code, failing test, and traceback before any failure remediation. Distinguish collection, execution, environment, service configuration, database, and workspace-quality failures.
+- Evidence rule: record the exact command, exit code, failing test, and diagnostic before failure remediation. Classify collection, execution, environment, service configuration, database, and quality failures separately.
 
-## Executed baseline evidence
+## Baseline focused evidence
 
-| Command | Exit code | Result | Scope |
-| --- | --- | --- | --- |
-| `cargo test -p edge-sync` | 0 | Passed | Existing edge-sync unit tests passed. This does not prove each RWO-4 acceptance criterion. |
-| `cargo fmt --check -p edge-sync` | 0 | Passed | Existing edge-sync source formatting passed. |
-| `cargo clippy -p edge-sync --all-targets -- -D warnings` | 0 | Passed | Existing edge-sync targets passed lint without warnings. |
+| Command | Exit code | Result |
+| --- | --- | --- |
+| `cargo test -p edge-sync` | 0 | Passed. |
+| `cargo fmt --check -p edge-sync` | 0 | Passed. |
+| `cargo clippy -p edge-sync --all-targets -- -D warnings` | 0 | Passed. |
 
-- CI evidence: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33985668782
+Initial focused CI: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33985668782
 
-## Increment 1: injected reconciliation boundary
+## Reconciliation increment
 
-- Change: Added `edge-sync-reconciliation`, an edge-side controller that dispatches the next ordered `EdgeSyncEnvelope` to an injected BFF client. No HTTP transport, credentials, or central business logic was introduced.
-- Focused behavior tests added: reconnect ordering, duplicate reconciliation, retry scheduling across restart, controlled recovery on unsafe BFF response, tenant mismatch rejection before dispatch, and online freshness after reconciliation.
+- Added `edge-sync-reconciliation`, an edge-side controller that sends the next ordered `EdgeSyncEnvelope` through an injected BFF client and persists the bounded result through `EdgeStore`.
+- No HTTP transport, credentials, or central business logic was added.
+- Covered behavior: ordered reconnect dispatch, duplicate reconciliation, BFF-unavailable retry and restart, unsafe response controlled recovery, tenant mismatch dispatch rejection, and online freshness after reconciliation.
 
-## Formatter root-cause analysis: in progress
-
-### Direct evidence collected
+## Formatter root-cause evidence
 
 | Command or observation | Exit code / result | Evidence |
 | --- | --- | --- |
-| `cargo test -p edge-sync -p edge-sync-reconciliation` | 0 | Passed in repeated focused CI runs. |
-| `cargo fmt --check -p edge-sync` | 0 | Passed in the per-package run. |
-| `cargo fmt --check -p edge-sync-reconciliation` | 1 | Failed in the per-package run. |
-| `cargo fmt -p edge-sync-reconciliation` then `git diff --exit-code -- crates/edge-sync-reconciliation` | 1 | Failed, proving the formatter modifies a committed file in the reconciliation crate. The prior workflow did not print the resulting diff. |
-| `cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings` | Not executed | Skipped after formatter failure. |
+| `cargo fmt --check -p edge-sync` | 0 | Passed in the isolated run. |
+| `cargo fmt --check -p edge-sync-reconciliation` under moving stable 1.98.1 | 1 | Failed. |
+| `cargo fmt -p edge-sync-reconciliation` then scoped `git diff --exit-code` | 1 | Proved rustfmt changed committed reconciliation source. |
+| Pinned Rust 1.85.0 diagnostic: initial check, apply, SHA-256, `git diff --check`, scoped diff, status, and recheck | 0 | Passed in a clean checkout, without source-cache restore. |
 
-- Per-package workflow: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33987094295
-- Diff diagnostic workflow: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33987433801
-- Failure category: formatter and toolchain/configuration evidence gap. It is not a test, environment, database, or service-configuration failure.
+Pinned diagnostic run: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33987710675
 
-### Findings before remediation
+Finding: the reproducible formatter prevention measure is the Rust 1.85.0 pin, which matches the workspace minimum. The old 1.98.1-generated diff was not retained in the historical logs, so its exact text is unresolved. The pinned run proves the current committed source has no formatter diff under the intended toolchain.
 
-- The formatter failure is limited to the RWO-4-owned reconciliation crate. `edge-sync` passes formatting.
-- CI used moving `stable` and installed Rust 1.98.1. The workspace only declared `rust-version = 1.85`; it did not pin Rust or rustfmt with `rust-toolchain.toml`.
-- No generated Rust files, build scripts, feature-dependent generated code, or macro-expansion formatting paths exist in the reconciliation crate.
-- The workflow checks a clean Actions checkout. It does not restore a source cache. The failed formatter-apply step proves the formatter creates an uncommitted source diff in CI.
-- The earlier workflow did not preserve the exact diff, tool versions, line ending state, or final recheck. No code change will be made until that diagnostic sequence runs with the pinned formatter.
+## Clippy root-cause evidence and remediation
 
-### Corrective action and prevention
+Failed focused run: https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33987833700
 
-- Fix under test: pin Rust and rustfmt to 1.85.0, the declared workspace minimum, using `rust-toolchain.toml`.
-- Add regression diagnostics to CI: record tool versions and workspace metadata; run formatter check, formatter apply, `git diff --check`, scoped diff, status, and final check for the reconciliation crate.
-- The diagnostic failure remains a gate. CI succeeds only when the initial and final formatter checks, formatter apply, and diff checks all exit 0.
-- No unrelated source file has been modified by this corrective configuration commit. Changed files are the toolchain, focused workflow, and WO-4 execution documentation.
+| Field | Evidence |
+| --- | --- |
+| Command | `cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings` |
+| Exit code | 101 |
+| Package | `edge-sync-reconciliation` (lib test) |
+| File and line | `crates/edge-sync-reconciliation/src/lib.rs:152:9` |
+| Lint | `clippy::drop_non_drop` |
+| Full error | `call to std::mem::drop with a value that does not implement Drop. Dropping such a type only extends its contained lifetimes` |
+| Trigger | `drop(controller);` where `controller` is `EdgeSynchronizationController<'_, tests::FakeBff>` |
+| Classification | RWO-4-owned test-code quality failure. It is not a collection, execution, database, environment, broker, or dependency failure. |
+| Dependency impact | None. The reconciliation crate depends only on `edge-sync`; this lint operates on local test code and does not require a dependency update. |
 
-## Scope discovery
+Root cause: the test explicitly called `drop(controller)` to release mutable borrows of the store and fake BFF before its assertions. `EdgeSynchronizationController` has no `Drop` implementation, so the explicit call is ineffective for resource management and Clippy correctly rejects it under `-D warnings`.
 
-- The repository has no implemented BFF, central reconciliation service, network transport, or central adapter. Its only edge contract is `packages/contracts/src/edge.ts`.
-- RWO-4 therefore adds a testable edge-side reconciliation boundary. It does not invent network transport, credentials, or new central business behavior.
+Fix: wrap the controller and synchronization assertions in a lexical block. The block ends the mutable borrows before the BFF and store assertions. No lint suppression was used.
 
-## Acceptance evidence
+Prevention: focused CI remains strict for both edge crates and saves complete Clippy stderr as the `edge-clippy-stderr` artifact on every run. This preserves diagnostics even if the rendered job log or annotation is truncated.
+
+## Pending post-fix validation
+
+The post-fix workflow must exit 0 for all of the following before any new RWO-4 increment:
+
+1. `cargo fmt -p edge-sync -- --check`
+2. Reconciliation formatter diagnostic sequence: check, apply, SHA-256, `git diff --check`, scoped diff, status, recheck
+3. `cargo test -p edge-sync -p edge-sync-reconciliation`
+4. `cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings`
+5. Complete focused RWO-4 validation workflow
+
+## Acceptance status
 
 | Criterion | Status | Evidence |
 | --- | --- | --- |
-| AC-EDG-001.1 offline permitted actions | Partial | Durable queue and retry-after-restart tests exist. Pinned focused validation is pending. |
-| AC-EDG-001.2 reconnect without duplicate effects | Partial | Ordered dispatch and duplicate reconciliation tests exist. Pinned focused validation is pending. |
-| AC-EDG-001.3 operator freshness state | Partial | Online freshness is checked after reconciliation. Explicit offline and stale focused tests remain pending. |
-| AC-EDG-001.4 controlled recovery | Partial | Unsafe BFF response enters controlled recovery. Pinned focused validation is pending. |
+| AC-EDG-001.1 offline permitted actions | Partial | Durable queue and retry-after-restart tests exist. |
+| AC-EDG-001.2 reconnect without duplicate effects | Partial | Ordered dispatch and duplicate reconciliation tests exist. |
+| AC-EDG-001.3 operator freshness | Partial | Online freshness is tested; explicit offline and stale tests remain. |
+| AC-EDG-001.4 controlled recovery | Partial | Unsafe BFF response enters controlled recovery. |
 
-## Lessons learned
-
-- Capture the actual failing command and complete diagnostics before changing code or configuration.
-- Pin formatter versions before relying on formatting evidence across environments.
-- Full workspace and foundation validation are final gates. They do not replace focused acceptance evidence.
+WO-32 remains in progress. RWO-5 has not started.

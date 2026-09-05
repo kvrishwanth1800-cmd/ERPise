@@ -7,8 +7,11 @@
 - [x] Classify the failure before remediation.
 - [x] Isolate the failing formatter package as `edge-sync-reconciliation`.
 - [x] Identify missing toolchain pinning and missing CI formatter-diff evidence as configuration risks.
-- [ ] Execute and record the pinned-toolchain formatter diagnostic sequence.
-- [ ] Record successful focused validation after root-cause remediation.
+- [x] Execute and record the pinned-toolchain formatter diagnostic sequence.
+- [x] Capture the exact Clippy package, file, line, lint, message, and exit code.
+- [x] Classify the Clippy failure as RWO-4-owned test code and inspect its dependency impact before remediation.
+- [x] Replace the unnecessary explicit `drop` with a lexical borrow scope. No lint suppression was added.
+- [ ] Record successful focused validation after the lint fix.
 
 ## RWO-4 behavior evidence
 
