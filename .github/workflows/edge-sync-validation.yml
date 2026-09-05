@@ -38,25 +38,33 @@ jobs:
       - name: Diagnose reconciliation formatting
         run: |
           set +e
+          file=crates/edge-sync-reconciliation/src/lib.rs
+          sha256sum "$file"
           cargo fmt -p edge-sync-reconciliation -- --check
           check_exit=$?
-          echo "cargo fmt --check exit: $check_exit"
           cargo fmt -p edge-sync-reconciliation
           format_exit=$?
-          echo "cargo fmt exit: $format_exit"
+          sha256sum "$file"
           git diff --check
           diff_check_exit=$?
-          echo "git diff --check exit: $diff_check_exit"
           git diff -- crates/edge-sync-reconciliation
           git status --short
           cargo fmt -p edge-sync-reconciliation -- --check
           recheck_exit=$?
-          echo "cargo fmt recheck exit: $recheck_exit"
           test "$check_exit" -eq 0
           test "$format_exit" -eq 0
           test "$diff_check_exit" -eq 0
           test "$recheck_exit" -eq 0
       - name: Test edge crates
         run: cargo test -p edge-sync -p edge-sync-reconciliation
-      - name: Lint edge crates
-        run: cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings
+      - name: Lint edge crates and annotate failures
+        run: |
+          set +e
+          output=$(cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings 2>&1)
+          exit_code=$?
+          printf '%s\n' "$output"
+          if [ "$exit_code" -ne 0 ]; then
+            compact=$(printf '%s' "$output" | tail -n 25 | tr '\n' ' ' | sed 's/::/%3A%3A/g')
+            echo "::error title=Edge clippy failure::$compact"
+          fi
+          exit "$exit_code"
