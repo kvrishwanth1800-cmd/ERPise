@@ -87,6 +87,7 @@ mod tests {
     use tempfile::NamedTempFile;
 
     struct TestKeys;
+
     impl SecureKeyProvider for TestKeys {
         fn database_key(&self, _: &str) -> Result<Vec<u8>> {
             Ok(vec![7; 32])
@@ -116,13 +117,15 @@ mod tests {
 
     fn store() -> (NamedTempFile, EdgeStore) {
         let file = NamedTempFile::new().unwrap();
-        let mut store = EdgeStore::open_encrypted(file.path(), &TestKeys, "device-a").unwrap();
+        let mut store =
+            EdgeStore::open_encrypted(file.path(), &TestKeys, "device-a").unwrap();
         store.enroll(&binding(), 1).unwrap();
         (file, store)
     }
 
     struct FakeBff {
-        outcomes: VecDeque<std::result::Result<EdgeOperationReconciled, BffReconciliationError>>,
+        outcomes:
+            VecDeque<std::result::Result<EdgeOperationReconciled, BffReconciliationError>>,
         sent: Vec<EdgeSyncEnvelope>,
     }
 
@@ -163,8 +166,14 @@ mod tests {
         assert!(!controller.synchronize_once(&binding(), 12).unwrap());
         drop(controller);
 
-        assert_eq!(bff.sent.iter().map(|item| item.sequence).collect::<Vec<_>>(), vec![first, second]);
-        assert_eq!(store.freshness(true, 12, 60).unwrap().state, FreshnessState::Online);
+        assert_eq!(
+            bff.sent.iter().map(|item| item.sequence).collect::<Vec<_>>(),
+            vec![first, second]
+        );
+        assert_eq!(
+            store.freshness(true, 12, 60).unwrap().state,
+            FreshnessState::Online
+        );
     }
 
     #[test]
@@ -182,7 +191,10 @@ mod tests {
         drop(store);
 
         let store = EdgeStore::open_encrypted(file.path(), &TestKeys, "device-a").unwrap();
-        assert_eq!(store.next_pending(&binding(), 12).unwrap().unwrap().sequence, sequence);
+        assert_eq!(
+            store.next_pending(&binding(), 12).unwrap().unwrap().sequence,
+            sequence
+        );
     }
 
     #[test]
