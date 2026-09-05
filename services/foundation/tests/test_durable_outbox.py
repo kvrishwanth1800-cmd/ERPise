@@ -54,9 +54,16 @@ def write_record(cursor: psycopg.Cursor[object], event_id: str, tenant_id: str =
     cursor.execute("INSERT INTO outbox_business_records (record_id, tenant_id, value) VALUES (%s, %s, 'changed')", (event_id, tenant_id))
 
 
+def record_writer(event_id: str) -> callable:
+    def write(cursor: psycopg.Cursor[object]) -> None:
+        write_record(cursor, event_id)
+
+    return write
+
+
 def test_committed_business_state_and_outbox_are_atomic(database: psycopg.Connection[object]) -> None:
     store = DurableOutboxStore(database)
-    store.commit_business_event(event("event-1"), lambda cursor: write_record(cursor, "event-1"))
+    store.commit_business_event(event("event-1"), record_writer("event-1"))
     with database.cursor() as cursor:
         cursor.execute("SELECT count(*) FROM outbox_business_records")
         assert cursor.fetchone() == (1,)
@@ -82,7 +89,7 @@ def test_failed_business_write_loses_neither_partial_state_nor_event(database: p
 
 def test_failed_delivery_recovers_after_restart(database: psycopg.Connection[object]) -> None:
     store = DurableOutboxStore(database)
-    store.commit_business_event(event("event-retry"), lambda cursor: write_record(cursor, "event-retry"))
+    store.commit_business_event(event("event-retry"), record_writer("event-retry"))
     assert store.publish_pending(RecordingBroker(failures=1)) == ()
     broker = RecordingBroker()
     assert DurableOutboxStore(database).publish_pending(broker) == ("event-retry",)
@@ -92,7 +99,7 @@ def test_failed_delivery_recovers_after_restart(database: psycopg.Connection[obj
 def test_duplicate_and_out_of_order_delivery_have_one_logical_effect(database: psycopg.Connection[object]) -> None:
     store = DurableOutboxStore(database)
     for event_id in ("event-1", "event-2"):
-        store.commit_business_event(event(event_id), lambda cursor, key=event_id: write_record(cursor, key))
+        store.commit_business_event(event(event_id), record_writer(event_id))
     delivered = store.pending()
     effects: list[str] = []
     assert store.consume("inventory", delivered[1], "inventory", lambda item: effects.append(item.event_id))
@@ -105,7 +112,7 @@ def test_duplicate_and_out_of_order_delivery_have_one_logical_effect(database: p
 def test_replay_rebuilds_projection_without_external_effects(database: psycopg.Connection[object]) -> None:
     store = DurableOutboxStore(database)
     for event_id in ("event-1", "event-2"):
-        store.commit_business_event(event(event_id), lambda cursor, key=event_id: write_record(cursor, key))
+        store.commit_business_event(event(event_id), record_writer(event_id))
     unsafe_effects: list[str] = []
     events = store.pending()
     store.consume("ledger", events[0], "ledger", lambda item: unsafe_effects.append(item.event_id))
@@ -116,7 +123,7 @@ def test_replay_rebuilds_projection_without_external_effects(database: psycopg.C
 
 def test_dead_letter_and_tenant_isolation_are_durable(database: psycopg.Connection[object]) -> None:
     store = DurableOutboxStore(database)
-    store.commit_business_event(event("event-dead"), lambda cursor: write_record(cursor, "event-dead"))
+    store.commit_business_event(event("event-dead"), record_writer("event-dead"))
     assert store.publish_pending(RecordingBroker(failures=3), max_attempts=1) == ()
     with database.cursor() as cursor:
         cursor.execute("SELECT tenant_id FROM outbox_dead_letters")

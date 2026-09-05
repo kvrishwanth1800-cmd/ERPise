@@ -7,7 +7,7 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import psycopg
 from psycopg.rows import dict_row
@@ -127,7 +127,10 @@ class DurableOutboxStore:
     def _record_publish_failure(self, event: DurableEvent, error: str, max_attempts: int) -> None:
         with self._connection.transaction(), self._connection.cursor() as cursor:
             cursor.execute("UPDATE durable_outbox_records SET publish_attempts = publish_attempts + 1, last_error = %s WHERE event_id = %s RETURNING publish_attempts", (error, event.event_id))
-            attempts = int(cursor.fetchone()[0])
+            returned_attempts = cursor.fetchone()
+            if returned_attempts is None:
+                raise LookupError(f"outbox event {event.event_id} does not exist")
+            attempts = int(returned_attempts[0])
             result = "retrying"
             if attempts >= max_attempts:
                 cursor.execute("INSERT INTO outbox_dead_letters (dead_letter_id, event_id, tenant_id, reason) VALUES (%s, %s, %s, %s) ON CONFLICT (event_id) DO NOTHING", (f"dead-{event.event_id}", event.event_id, event.tenant_id, error))
@@ -143,7 +146,9 @@ class DurableOutboxStore:
 
     @staticmethod
     def _event(row: Mapping[str, object]) -> DurableEvent:
-        return DurableEvent(str(row["event_id"]), str(row["tenant_id"]), str(row["event_type"]), str(row["schema_version"]), str(row["trace_id"]), dict(row["payload"]), row["occurred_at"])  # type: ignore[arg-type]
+        payload = cast(Mapping[str, object], row["payload"])
+        occurred_at = cast(datetime, row["occurred_at"])
+        return DurableEvent(str(row["event_id"]), str(row["tenant_id"]), str(row["event_type"]), str(row["schema_version"]), str(row["trace_id"]), dict(payload), occurred_at)
 
     @staticmethod
     def _audit(cursor: psycopg.Cursor[Any], event: DurableEvent, source: str, result: str) -> None:
