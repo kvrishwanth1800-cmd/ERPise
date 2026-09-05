@@ -24,6 +24,7 @@ for (const path of targets) {
 }
 
 if (mismatches.length > 0) {
-  process.stderr.write(`FORMAT_MISMATCHES=${mismatches.join(',')}\n`);
-  process.exit(1);
+  const message = `Prettier requires canonical formatting for: ${mismatches.join(', ')}`;
+  process.stderr.write(`::error title=Formatter drift::${message}\n`);
+  throw new Error(message);
 }
