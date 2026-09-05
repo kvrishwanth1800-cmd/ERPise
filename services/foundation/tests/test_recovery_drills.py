@@ -13,8 +13,8 @@ import pytest
 from foundation.operations import OperationsEvidenceService
 from foundation.persistence import DurableFoundationStore
 
-MIGRATIONS = Path(__file__).parents[1] / "migrations"
 DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
+MIGRATIONS = Path(__file__).parents[1] / "migrations"
 UP_MIGRATIONS = (
     "0001_operations_evidence.up.sql",
     "0002_foundation_durable_state.up.sql",
