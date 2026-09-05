@@ -38,6 +38,18 @@ jobs:
           --health-retries 30
         env:
           REDPANDA_AUTO_CREATE_TOPICS_ENABLED: "true"
+        command: >-
+          redpanda start
+          --overprovisioned
+          --smp 1
+          --memory 1G
+          --reserve-memory 0M
+          --node-id 0
+          --check=false
+          --kafka-addr PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092
+          --advertise-kafka-addr PLAINTEXT://redpanda:9092,OUTSIDE://localhost:19092
+          --pandaproxy-addr 0.0.0.0:8082
+          --advertise-pandaproxy-addr localhost:8082
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
