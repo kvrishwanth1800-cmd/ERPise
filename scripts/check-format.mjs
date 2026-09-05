@@ -5,6 +5,7 @@ import { format, resolveConfig } from 'prettier';
 
 const targets = [
   'packages/contracts/src/index.ts',
+  'packages/contracts/src/edge.ts',
   'packages/contracts/src/index.test.ts',
   'packages/contracts/package.json',
   'package.json',
