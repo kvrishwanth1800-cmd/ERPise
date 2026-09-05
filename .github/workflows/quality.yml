@@ -84,9 +84,33 @@ jobs:
         run: uv run pytest services
       - uses: dtolnay/rust-toolchain@1.85.0
         with:
-          components: rustfmt, clippy
-      - name: Check Rust formatting
-        run: cargo fmt --check
+          components: rustfmt,clippy
+      - name: Diagnose Rust formatting
+        run: |
+          set +e
+          cargo fmt --check
+          initial_check_exit=$?
+          cargo fmt
+          apply_exit=$?
+          git diff --check
+          diff_check_exit=$?
+          git diff -- . ':!scratch/wo-execution/**' | tee workspace-rustfmt.diff
+          git status --short | tee workspace-rustfmt.status
+          cargo fmt --check
+          final_check_exit=$?
+          test "$initial_check_exit" -eq 0
+          test "$apply_exit" -eq 0
+          test "$diff_check_exit" -eq 0
+          test "$final_check_exit" -eq 0
+      - name: Upload Rust formatter diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-rustfmt-diagnostics
+          path: |
+            workspace-rustfmt.diff
+            workspace-rustfmt.status
+          if-no-files-found: warn
       - name: Lint Rust workspace
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test Rust workspace
