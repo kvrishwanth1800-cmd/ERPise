@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -54,7 +54,7 @@ def write_record(cursor: psycopg.Cursor[object], event_id: str, tenant_id: str =
     cursor.execute("INSERT INTO outbox_business_records (record_id, tenant_id, value) VALUES (%s, %s, 'changed')", (event_id, tenant_id))
 
 
-def record_writer(event_id: str) -> callable:
+def record_writer(event_id: str) -> Callable[[psycopg.Cursor[object]], None]:
     def write(cursor: psycopg.Cursor[object]) -> None:
         write_record(cursor, event_id)
 
