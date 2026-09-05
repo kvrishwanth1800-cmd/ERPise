@@ -15,7 +15,7 @@ export interface EdgeSyncEnvelope {
   readonly siteId: string;
   readonly registerId: string;
   readonly deviceId: string;
-  readonly sequence: string;
+  readonly sequence: number;
   readonly retryCount: number;
   readonly command: SaleCommand;
 }
@@ -27,27 +27,7 @@ export type EdgeReconciliationOutcome =
   | 'CONTROLLED_RECOVERY';
 
 export interface EdgeOperationReconciled {
-  readonly tenantId: string;
-  readonly siteId: string;
-  readonly registerId: string;
-  readonly deviceId: string;
-  readonly sequence: string;
-  readonly serverCursor: string;
+  readonly sequence: number;
   readonly outcome: EdgeReconciliationOutcome;
-  readonly diagnosticCode: string;
-}
-
-export function isEdgeReconciliationOutcome(
-  value: unknown
-): value is EdgeReconciliationOutcome {
-  return (
-    value === 'ACCEPTED' ||
-    value === 'DUPLICATE' ||
-    value === 'RETRYABLE_FAILURE' ||
-    value === 'CONTROLLED_RECOVERY'
-  );
-}
-
-export function isEdgeSequence(value: unknown): value is string {
-  return typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value);
+  readonly diagnostic: string;
 }
