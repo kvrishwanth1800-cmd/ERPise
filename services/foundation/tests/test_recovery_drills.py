@@ -14,7 +14,6 @@ import pytest
 from foundation.operations import OperationsEvidenceService
 from foundation.persistence import DurableFoundationStore
 
-DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 MIGRATIONS = Path(__file__).parents[1] / "migrations"
 UP_MIGRATIONS = (
     "0001_operations_evidence.up.sql",
@@ -29,15 +28,16 @@ DOWN_MIGRATIONS = (
 
 
 @pytest.fixture
-def database() -> Iterator[psycopg.Connection[object]]:
-    if not DATABASE_URL:
+def database() -> Iterator[tuple[psycopg.Connection[object], str]]:
+    database_url = os.environ.get("TEST_DATABASE_URL")
+    if not database_url:
         pytest.skip("TEST_DATABASE_URL is required for recovery drills")
-    connection = psycopg.connect(DATABASE_URL)
+    connection = psycopg.connect(database_url)
     for name in UP_MIGRATIONS:
         with connection.cursor() as cursor:
             cursor.execute((MIGRATIONS / name).read_text())
         connection.commit()
-    yield connection
+    yield connection, database_url
     for name in DOWN_MIGRATIONS:
         with connection.cursor() as cursor:
             cursor.execute((MIGRATIONS / name).read_text())
@@ -47,30 +47,31 @@ def database() -> Iterator[psycopg.Connection[object]]:
 
 @pytest.mark.integration
 def test_database_restore_and_full_migration_rollback_preserve_tenant_isolation(
-    database: psycopg.Connection[object],
+    database: tuple[psycopg.Connection[object], str],
 ) -> None:
     """Restore a saved tenant after a complete migration rollback and reapply cycle."""
-    store = DurableFoundationStore(database)
+    connection, database_url = database
+    store = DurableFoundationStore(connection)
     tenant_a_backup = {"currency": "USD", "timezone": "America/New_York"}
     store.create_organization("tenant-a", "root-a", None, tenant_a_backup, "trace-backup-a")
     store.create_organization("tenant-b", "root-b", None, {"currency": "EUR"}, "trace-backup-b")
 
     for name in DOWN_MIGRATIONS:
-        with database.cursor() as cursor:
+        with connection.cursor() as cursor:
             cursor.execute((MIGRATIONS / name).read_text())
-        database.commit()
+        connection.commit()
     for name in UP_MIGRATIONS:
-        with database.cursor() as cursor:
+        with connection.cursor() as cursor:
             cursor.execute((MIGRATIONS / name).read_text())
-        database.commit()
+        connection.commit()
 
-    restored = DurableFoundationStore(database)
+    restored = DurableFoundationStore(connection)
     restored.create_organization("tenant-a", "root-a", None, tenant_a_backup, "trace-restore-a")
     assert restored.effective_settings("tenant-a", "root-a") == tenant_a_backup
     with pytest.raises(PermissionError):
         restored.effective_settings("tenant-b", "root-b")
 
-    evidence = OperationsEvidenceService(DATABASE_URL)
+    evidence = OperationsEvidenceService(database_url)
     try:
         result = evidence.record_restore_exercise(
             f"restore-{uuid4()}", "tenant-a", "trace-restore-a", True, True
