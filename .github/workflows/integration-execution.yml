@@ -43,13 +43,6 @@ jobs:
           version: 0.6.3
       - name: Sync Python workspace
         run: uv sync --all-groups
-      - name: Record integration environment
-        env:
-          TEST_DATABASE_URL: postgresql://erpise:change-me-local-only@localhost:5432/erpise
-          TEST_REDPANDA_BOOTSTRAP_SERVERS: localhost:19092
-        run: |
-          docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
-          uv run python -c "import os, kafka; print(f'kafka-python={kafka.__version__}'); print(f'TEST_DATABASE_URL={os.environ[\"TEST_DATABASE_URL\"]}'); print(f'TEST_REDPANDA_BOOTSTRAP_SERVERS={os.environ[\"TEST_REDPANDA_BOOTSTRAP_SERVERS\"]}')"
       - name: Run exact CI integration-test command
         id: pytest
         continue-on-error: true
@@ -58,8 +51,19 @@ jobs:
           TEST_REDPANDA_BOOTSTRAP_SERVERS: localhost:19092
         run: |
           set -o pipefail
-          uv run pytest services 2>&1 | tee pytest-execution.log
-          exit ${PIPESTATUS[0]}
+          uv run pytest services > pytest-execution.log 2>&1
+          status=$?
+          sed -n '1,240p' pytest-execution.log
+          exit "$status"
+      - name: Surface pytest output as check annotation
+        if: steps.pytest.outcome == 'failure'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path("pytest-execution.log").read_text(encoding="utf-8")
+          text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::error title=Pytest integration execution output::{text}")
+          PY
       - name: Upload pytest execution output
         if: always()
         uses: actions/upload-artifact@v4
