@@ -13,10 +13,8 @@ use edge_sync::{
 /// A BFF-facing client. Implementations send exactly the supplied envelope and
 /// return the BFF's bounded reconciliation outcome.
 pub trait BffReconciliationClient {
-    fn reconcile(
-        &mut self,
-        envelope: &EdgeSyncEnvelope,
-    ) -> std::result::Result<EdgeOperationReconciled, BffReconciliationError>;
+    fn reconcile(&mut self, envelope: &EdgeSyncEnvelope)
+        -> std::result::Result<EdgeOperationReconciled, BffReconciliationError>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -117,15 +115,13 @@ mod tests {
 
     fn store() -> (NamedTempFile, EdgeStore) {
         let file = NamedTempFile::new().unwrap();
-        let mut store =
-            EdgeStore::open_encrypted(file.path(), &TestKeys, "device-a").unwrap();
+        let mut store = EdgeStore::open_encrypted(file.path(), &TestKeys, "device-a").unwrap();
         store.enroll(&binding(), 1).unwrap();
         (file, store)
     }
 
     struct FakeBff {
-        outcomes:
-            VecDeque<std::result::Result<EdgeOperationReconciled, BffReconciliationError>>,
+        outcomes: VecDeque<std::result::Result<EdgeOperationReconciled, BffReconciliationError>>,
         sent: Vec<EdgeSyncEnvelope>,
     }
 
