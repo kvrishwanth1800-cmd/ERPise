@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Typed deterministic ERPise application service foundations"
 requires-python = ">=3.12"
 dependencies = [
-  "kafka-python==2.0.2",
+  "kafka-python==2.0.3",
   "psycopg[binary]==3.2.6",
 ]
 
