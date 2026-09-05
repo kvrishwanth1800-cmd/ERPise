@@ -74,43 +74,32 @@ export type ValidationResult<TValue> =
   | { readonly ok: true; readonly value: TValue }
   | { readonly ok: false; readonly problem: ProblemDetail };
 
-export function validateCommandEnvelope(value: unknown): ValidationResult<CommandEnvelope<unknown>> {
-  if (!isRecord(value)) {
-    return invalidCommand('A command envelope must be an object.');
-  }
-  if (value.version !== CONTRACT_VERSION_V1) {
-    return unsupportedVersion();
-  }
-  for (const field of [
-    'commandId',
-    'commandType',
-    'traceId',
-    'idempotencyKey'
-  ]) {
+export function validateCommandEnvelope(
+  value: unknown
+): ValidationResult<CommandEnvelope<unknown>> {
+  if (!isRecord(value)) return invalidCommand('A command envelope must be an object.');
+  if (value.version !== CONTRACT_VERSION_V1) return unsupportedVersion();
+
+  for (const field of ['commandId', 'commandType', 'traceId', 'idempotencyKey']) {
     if (!isNonEmptyString(value[field])) {
-      return invalidCommand(
-        `Command envelope field ${field} must be a non-empty string.`
-      );
+      return invalidCommand(`Command envelope field ${field} must be a non-empty string.`);
     }
   }
-  return { ok: true, value: value as unknown as CommandEnvelope<unknown> };
+
+  return { ok: true, value: value as CommandEnvelope<unknown> };
 }
 
 export function validateDomainEvent(value: unknown): ValidationResult<DomainEvent<unknown>> {
-  if (!isRecord(value)) {
-    return invalidEvent('A domain event must be an object.');
-  }
-  if (value.version !== CONTRACT_VERSION_V1) {
-    return unsupportedVersion();
-  }
+  if (!isRecord(value)) return invalidEvent('A domain event must be an object.');
+  if (value.version !== CONTRACT_VERSION_V1) return unsupportedVersion();
+
   for (const field of ['eventId', 'eventType', 'occurredAt', 'traceId']) {
     if (!isNonEmptyString(value[field])) {
-      return invalidEvent(
-        `Domain event field ${field} must be a non-empty string.`
-      );
+      return invalidEvent(`Domain event field ${field} must be a non-empty string.`);
     }
   }
-  return { ok: true, value: value as unknown as DomainEvent<unknown> };
+
+  return { ok: true, value: value as DomainEvent<unknown> };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -122,26 +111,17 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function invalidCommand(message: string): ValidationResult<never> {
-  return {
-    ok: false,
-    problem: { code: 'invalid_command', message, retryable: false }
-  };
+  return problem('invalid_command', message);
 }
 
 function invalidEvent(message: string): ValidationResult<never> {
-  return {
-    ok: false,
-    problem: { code: 'invalid_event', message, retryable: false }
-  };
+  return problem('invalid_event', message);
 }
 
 function unsupportedVersion(): ValidationResult<never> {
-  return {
-    ok: false,
-    problem: {
-      code: 'unsupported_contract_version',
-      message: 'The contract version is not supported.',
-      retryable: false
-    }
-  };
+  return problem('unsupported_contract_version', 'The contract version is not supported.');
+}
+
+function problem(code: ProblemCode, message: string): ValidationResult<never> {
+  return { ok: false, problem: { code, message, retryable: false } };
 }
