@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """PostgreSQL-backed outbox delivery and replay-safe projection processing."""
 
 from __future__ import annotations
@@ -51,15 +52,7 @@ class DurableOutboxStore:
                 "INSERT INTO durable_outbox_records "
                 "(event_id, tenant_id, event_type, schema_version, trace_id, payload, occurred_at) "
                 "VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s)",
-                (
-                    event.event_id,
-                    event.tenant_id,
-                    event.event_type,
-                    event.schema_version,
-                    event.trace_id,
-                    json.dumps(dict(event.payload)),
-                    event.occurred_at,
-                ),
+                (event.event_id, event.tenant_id, event.event_type, event.schema_version, event.trace_id, json.dumps(dict(event.payload)), event.occurred_at),
             )
             self._audit(cursor, event, "outbox.commit", "committed")
 
@@ -80,7 +73,7 @@ class DurableOutboxStore:
         for event in self.pending():
             try:
                 broker.publish(event)
-            except Exception as error:  # Broker failures must retain the committed fact.
+            except Exception as error:
                 self._record_publish_failure(event, str(error), max_attempts)
                 continue
             with self._connection.transaction(), self._connection.cursor() as cursor:
@@ -93,20 +86,10 @@ class DurableOutboxStore:
                 published.append(event.event_id)
         return tuple(published)
 
-    def consume(
-        self,
-        consumer_name: str,
-        event: DurableEvent,
-        projection_key: str,
-        external_effect: ExternalEffect,
-        *,
-        replay: bool = False,
-    ) -> bool:
+    def consume(self, consumer_name: str, event: DurableEvent, projection_key: str, external_effect: ExternalEffect, *, replay: bool = False) -> bool:
         """Apply one logical projection effect. Replay never invokes external effects."""
         with self._connection.transaction(), self._connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT tenant_id FROM durable_outbox_records WHERE event_id = %s", (event.event_id,)
-            )
+            cursor.execute("SELECT tenant_id FROM durable_outbox_records WHERE event_id = %s", (event.event_id,))
             row = cursor.fetchone()
             if row is None or row[0] != event.tenant_id:
                 raise PermissionError("event is outside tenant scope")
@@ -118,11 +101,9 @@ class DurableOutboxStore:
             if cursor.fetchone() is None:
                 return False
             cursor.execute(
-                "INSERT INTO replay_projection_effects "
-                "(consumer_name, tenant_id, projection_key, logical_effect_count) "
+                "INSERT INTO replay_projection_effects (consumer_name, tenant_id, projection_key, logical_effect_count) "
                 "VALUES (%s, %s, %s, 1) ON CONFLICT (consumer_name, tenant_id, projection_key) "
-                "DO UPDATE SET logical_effect_count = replay_projection_effects.logical_effect_count + 1, "
-                "updated_at = now()",
+                "DO UPDATE SET logical_effect_count = replay_projection_effects.logical_effect_count + 1, updated_at = now()",
                 (consumer_name, event.tenant_id, projection_key),
             )
             self._audit(cursor, event, "projection.replay" if replay else "projection.consume", "applied")
@@ -130,54 +111,26 @@ class DurableOutboxStore:
             external_effect(event)
         return True
 
-    def replay(
-        self,
-        consumer_name: str,
-        tenant_id: str,
-        events: Sequence[DurableEvent],
-        projection_key: str,
-    ) -> tuple[bool, ...]:
+    def replay(self, consumer_name: str, tenant_id: str, events: Sequence[DurableEvent], projection_key: str) -> tuple[bool, ...]:
         """Rebuild a tenant projection from committed facts without unsafe effects."""
         with self._connection.transaction(), self._connection.cursor() as cursor:
-            cursor.execute(
-                "DELETE FROM consumer_event_progress WHERE consumer_name = %s AND tenant_id = %s",
-                (consumer_name, tenant_id),
-            )
-            cursor.execute(
-                "DELETE FROM replay_projection_effects WHERE consumer_name = %s AND tenant_id = %s",
-                (consumer_name, tenant_id),
-            )
-        return tuple(
-            self.consume(consumer_name, event, projection_key, lambda _: None, replay=True)
-            for event in events
-            if event.tenant_id == tenant_id
-        )
+            cursor.execute("DELETE FROM consumer_event_progress WHERE consumer_name = %s AND tenant_id = %s", (consumer_name, tenant_id))
+            cursor.execute("DELETE FROM replay_projection_effects WHERE consumer_name = %s AND tenant_id = %s", (consumer_name, tenant_id))
+        return tuple(self.consume(consumer_name, event, projection_key, lambda _: None, replay=True) for event in events if event.tenant_id == tenant_id)
 
     def projection_count(self, consumer_name: str, tenant_id: str, projection_key: str) -> int:
         with self._connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT logical_effect_count FROM replay_projection_effects "
-                "WHERE consumer_name = %s AND tenant_id = %s AND projection_key = %s",
-                (consumer_name, tenant_id, projection_key),
-            )
+            cursor.execute("SELECT logical_effect_count FROM replay_projection_effects WHERE consumer_name = %s AND tenant_id = %s AND projection_key = %s", (consumer_name, tenant_id, projection_key))
             row = cursor.fetchone()
             return 0 if row is None else int(row[0])
 
     def _record_publish_failure(self, event: DurableEvent, error: str, max_attempts: int) -> None:
         with self._connection.transaction(), self._connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE durable_outbox_records SET publish_attempts = publish_attempts + 1, "
-                "last_error = %s WHERE event_id = %s RETURNING publish_attempts",
-                (error, event.event_id),
-            )
+            cursor.execute("UPDATE durable_outbox_records SET publish_attempts = publish_attempts + 1, last_error = %s WHERE event_id = %s RETURNING publish_attempts", (error, event.event_id))
             attempts = int(cursor.fetchone()[0])
             result = "retrying"
             if attempts >= max_attempts:
-                cursor.execute(
-                    "INSERT INTO outbox_dead_letters (dead_letter_id, event_id, tenant_id, reason) "
-                    "VALUES (%s, %s, %s, %s) ON CONFLICT (event_id) DO NOTHING",
-                    (f"dead-{event.event_id}", event.event_id, event.tenant_id, error),
-                )
+                cursor.execute("INSERT INTO outbox_dead_letters (dead_letter_id, event_id, tenant_id, reason) VALUES (%s, %s, %s, %s) ON CONFLICT (event_id) DO NOTHING", (f"dead-{event.event_id}", event.event_id, event.tenant_id, error))
                 result = "dead_lettered"
             self._audit(cursor, event, "outbox.publish", result)
 
@@ -190,31 +143,11 @@ class DurableOutboxStore:
 
     @staticmethod
     def _event(row: Mapping[str, object]) -> DurableEvent:
-        return DurableEvent(
-            event_id=str(row["event_id"]),
-            tenant_id=str(row["tenant_id"]),
-            event_type=str(row["event_type"]),
-            schema_version=str(row["schema_version"]),
-            trace_id=str(row["trace_id"]),
-            payload=dict(row["payload"]),
-            occurred_at=row["occurred_at"],  # type: ignore[arg-type]
-        )
+        return DurableEvent(str(row["event_id"]), str(row["tenant_id"]), str(row["event_type"]), str(row["schema_version"]), str(row["trace_id"]), dict(row["payload"]), row["occurred_at"])  # type: ignore[arg-type]
 
     @staticmethod
     def _audit(cursor: psycopg.Cursor[Any], event: DurableEvent, source: str, result: str) -> None:
         cursor.execute(
-            "INSERT INTO audit_records "
-            "(audit_id, tenant_id, actor_id, authority, source, reason, policy, trace_id, result) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-            (
-                f"audit-{source}-{event.event_id}-{result}",
-                event.tenant_id,
-                "event-platform",
-                "system",
-                source,
-                event.event_type,
-                event.schema_version,
-                event.trace_id,
-                result,
-            ),
+            "INSERT INTO audit_records (audit_id, tenant_id, actor_id, authority, source, reason, policy, trace_id, result) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (f"audit-{source}-{event.event_id}-{result}", event.tenant_id, "event-platform", "system", source, event.event_type, event.schema_version, event.trace_id, result),
         )

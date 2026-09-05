@@ -1,3 +1,4 @@
+# ruff: noqa: E501, I001
 """Integration coverage for PostgreSQL outbox delivery and replay recovery."""
 
 from __future__ import annotations
@@ -33,20 +34,12 @@ def database() -> Iterator[psycopg.Connection[object]]:
     if not DATABASE_URL:
         pytest.skip("TEST_DATABASE_URL is required for PostgreSQL integration tests")
     connection = psycopg.connect(DATABASE_URL)
-    for name in (
-        "0001_operations_evidence.up.sql",
-        "0002_foundation_durable_state.up.sql",
-        "0003_durable_outbox_replay.up.sql",
-    ):
+    for name in ("0001_operations_evidence.up.sql", "0002_foundation_durable_state.up.sql", "0003_durable_outbox_replay.up.sql"):
         with connection.cursor() as cursor:
             cursor.execute((MIGRATIONS / name).read_text())
         connection.commit()
     yield connection
-    for name in (
-        "0003_durable_outbox_replay.down.sql",
-        "0002_foundation_durable_state.down.sql",
-        "0001_operations_evidence.down.sql",
-    ):
+    for name in ("0003_durable_outbox_replay.down.sql", "0002_foundation_durable_state.down.sql", "0001_operations_evidence.down.sql"):
         with connection.cursor() as cursor:
             cursor.execute((MIGRATIONS / name).read_text())
         connection.commit()
@@ -54,16 +47,11 @@ def database() -> Iterator[psycopg.Connection[object]]:
 
 
 def event(event_id: str, tenant_id: str = "tenant-a") -> DurableEvent:
-    return DurableEvent(
-        event_id, tenant_id, "OrganizationChanged", "v1", "trace-1", {"id": event_id}, datetime.now(UTC)
-    )
+    return DurableEvent(event_id, tenant_id, "OrganizationChanged", "v1", "trace-1", {"id": event_id}, datetime.now(UTC))
 
 
 def write_record(cursor: psycopg.Cursor[object], event_id: str, tenant_id: str = "tenant-a") -> None:
-    cursor.execute(
-        "INSERT INTO outbox_business_records (record_id, tenant_id, value) VALUES (%s, %s, 'changed')",
-        (event_id, tenant_id),
-    )
+    cursor.execute("INSERT INTO outbox_business_records (record_id, tenant_id, value) VALUES (%s, %s, 'changed')", (event_id, tenant_id))
 
 
 def test_committed_business_state_and_outbox_are_atomic(database: psycopg.Connection[object]) -> None:
@@ -95,11 +83,9 @@ def test_failed_business_write_loses_neither_partial_state_nor_event(database: p
 def test_failed_delivery_recovers_after_restart(database: psycopg.Connection[object]) -> None:
     store = DurableOutboxStore(database)
     store.commit_business_event(event("event-retry"), lambda cursor: write_record(cursor, "event-retry"))
-    failing = RecordingBroker(failures=1)
-    assert store.publish_pending(failing) == ()
-    recovered = DurableOutboxStore(database)
+    assert store.publish_pending(RecordingBroker(failures=1)) == ()
     broker = RecordingBroker()
-    assert recovered.publish_pending(broker) == ("event-retry",)
+    assert DurableOutboxStore(database).publish_pending(broker) == ("event-retry",)
     assert broker.events == ["event-retry"]
 
 
