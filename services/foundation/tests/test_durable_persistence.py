@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """PostgreSQL integration checks for RWO-2 durable foundation state."""
 
 from __future__ import annotations
@@ -100,7 +101,9 @@ def test_audit_is_append_only_and_authorization_grants_are_durable(
     )
 
     with database.cursor() as cursor:
-        cursor.execute("SELECT tenant_id FROM authorization_grants WHERE grant_id = 'grant-1'")
+        cursor.execute(
+            "SELECT tenant_id FROM authorization_grants WHERE grant_id = 'grant-1'"
+        )
         assert cursor.fetchone() == ("tenant-a",)
         with pytest.raises(psycopg.Error, match="append-only"):
             cursor.execute("UPDATE audit_records SET result = 'changed' WHERE audit_id = %s", (audit_id,))
