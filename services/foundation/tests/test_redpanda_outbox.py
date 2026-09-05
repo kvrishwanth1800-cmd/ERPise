@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Redpanda end-to-end evidence for durable outbox delivery and recovery."""
 
 from __future__ import annotations
@@ -64,4 +65,6 @@ def test_redpanda_restart_recovery_and_tenant_metadata() -> None:
         received = list(restarted_consumer.events(1))
     finally:
         restarted_consumer.close()
-    assert [(item.event_id, item.tenant_id) for item in received] == [("event-recovery", "tenant-b")]
+    assert [(item.event_id, item.tenant_id) for item in received] == [
+        ("event-recovery", "tenant-b")
+    ]
