@@ -60,7 +60,20 @@ jobs:
         with:
           components: rustfmt, clippy
       - name: Check Rust formatting
-        run: cargo fmt --check
+        run: |
+          cargo fmt --check || {
+            cargo fmt
+            git diff -- crates > rustfmt.diff
+            cat rustfmt.diff
+            exit 1
+          }
+      - name: Upload Rust formatter diff
+        if: failure() && hashFiles('rustfmt.diff') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustfmt-diff
+          path: rustfmt.diff
+          if-no-files-found: error
       - name: Lint Rust workspace
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test Rust workspace
