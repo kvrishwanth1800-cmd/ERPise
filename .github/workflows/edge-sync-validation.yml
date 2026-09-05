@@ -23,5 +23,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test -p edge-sync -p edge-sync-reconciliation
       - run: cargo fmt --check -p edge-sync
-      - run: cargo fmt --check -p edge-sync-reconciliation
+      - name: Check reconciliation formatting and show diff
+        run: |
+          cargo fmt -p edge-sync-reconciliation
+          git diff --exit-code -- crates/edge-sync-reconciliation
       - run: cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings
