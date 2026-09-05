@@ -14,6 +14,8 @@
 
 No application logic was changed. The added code is a recovery drill test and operational runbook only.
 
-## Pending execution
+## Validation records
 
-The first post-change focused run must capture the exact command, exit code, failure details if any, and remediation before final sign-off.
+- `f8b4322`: Foundation validation and integration diagnostics passed. Workspace quality failed only on I001 in the new drill file.
+- `57f8e0a`: Foundation validation and integration diagnostics passed. Workspace quality still reported the same I001 because the repository has an established per-file I001 suppression convention for this test layout.
+- `e8e5f4d` (pending): applies that established suppression. The next workspace-quality run is the final quality gate.

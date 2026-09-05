@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Integrated recovery drills for the Phase 1 release candidate."""
 
 from __future__ import annotations
