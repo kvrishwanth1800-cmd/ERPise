@@ -13,6 +13,20 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17.4-alpine
+        env:
+          POSTGRES_DB: erpise
+          POSTGRES_USER: erpise
+          POSTGRES_PASSWORD: change-me-local-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U erpise -d erpise"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
