@@ -1,10 +1,33 @@
 # WO-4 checklist
 
-- [x] Deny-by-default authorization implemented
-- [x] Explicit permission grants evaluated by action and tenant scope
-- [x] Organization and record scope enforced
-- [x] Session revocation blocks later authorization
-- [x] Conflicting-duty assignment is rejected
-- [x] Unit tests cover every applicable acceptance criterion
-- [x] Implementation validation passed
-- [x] Evidence commit prepared
+## Evidence discipline
+
+- [x] Record the baseline focused validation commands and successful exit codes.
+- [x] Record the first incremental validation failure before remediation.
+- [x] Classify the failure before remediation.
+- [ ] Record successful focused validation after the formatter remediation.
+
+## RWO-4 behavior evidence
+
+- [x] Encrypted edge storage is covered by the existing same-key reopen test.
+- [x] Offline queue durability and restart recovery are covered by the injected-client retry test.
+- [x] Reconnect ordering is covered by the injected-client dispatch test.
+- [x] Duplicate reconciliation advances the ordered cursor without a second edge effect.
+- [x] Unavailable BFF retry is scheduled and persists across restart.
+- [x] Unsafe BFF sequence response enters controlled recovery.
+- [x] Tenant mismatch prevents BFF dispatch.
+- [x] Freshness is checked after accepted and duplicate reconciliation.
+- [ ] Add explicit focused coverage for offline and stale freshness states.
+- [ ] Add explicit focused coverage for site, register, device, and credential mismatch.
+- [ ] Confirm migration and rollback behavior remains covered after final code changes.
+
+## Final gates
+
+- [ ] Focused edge validation passes after all increments.
+- [ ] Workspace quality passes.
+- [ ] Foundation validation passes.
+- [ ] Delivery manager review sign-off recorded.
+- [ ] Technical lead review sign-off recorded.
+- [ ] Clean-code review sign-off recorded.
+- [ ] WO-32 is formally completed.
+- [ ] RWO-5 GO is declared only after all final gates pass.
