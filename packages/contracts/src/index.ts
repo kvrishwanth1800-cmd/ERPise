@@ -9,10 +9,7 @@ export const CONTRACT_VERSION_V1 = 'v1' as const;
 
 export type SupportedContractVersion = typeof CONTRACT_VERSION_V1;
 
-export type ProblemCode =
-  | 'invalid_command'
-  | 'unsupported_contract_version'
-  | 'invalid_event';
+export type ProblemCode = 'invalid_command' | 'unsupported_contract_version' | 'invalid_event';
 
 export interface ProblemDetail {
   readonly code: ProblemCode;
@@ -51,12 +48,7 @@ export function validateCommandEnvelope(
   if (value.version !== CONTRACT_VERSION_V1) {
     return unsupportedVersion();
   }
-  for (const field of [
-    'commandId',
-    'commandType',
-    'traceId',
-    'idempotencyKey'
-  ]) {
+  for (const field of ['commandId', 'commandType', 'traceId', 'idempotencyKey']) {
     if (!isNonEmptyString(value[field])) {
       return invalidCommand(`Command envelope field ${field} must be a non-empty string.`);
     }
