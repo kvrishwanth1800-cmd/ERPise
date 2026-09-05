@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import psycopg
 from psycopg.rows import dict_row
@@ -238,7 +239,7 @@ class OperationsEvidenceService:
             raise OperationsEvidenceError(
                 "Telemetry evidence does not exist for this tenant trace."
             )
-        return row["details"]
+        return cast(Mapping[str, object], row["details"])
 
     def prune_before(self, tenant_id: str, cutoff: datetime) -> int:
         self._require_values(tenant_id)

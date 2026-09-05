@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -7,7 +8,7 @@ from foundation.operations import OperationsEvidenceError, OperationsEvidenceSer
 
 
 @pytest.fixture
-def operations_service() -> OperationsEvidenceService:
+def operations_service() -> Generator[OperationsEvidenceService, None, None]:
     database_url = "postgresql://erpise:change-me-local-only@localhost:5432/erpise"
     service = OperationsEvidenceService(database_url)
     migration = Path("services/foundation/migrations/0001_operations_evidence.up.sql")
