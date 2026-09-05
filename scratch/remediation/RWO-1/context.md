@@ -1,0 +1,21 @@
+# RWO-1 Context
+
+## Inputs
+
+- WO-1 through WO-9 repository evidence.
+- Final verified Phase 1 baseline from `feature/edge-sync-baseline`.
+- Phase 1 audit decision: NO_GO pending remediation.
+
+## Boundaries
+
+- No merge to `main`.
+- No production deployment, credentials, or irreversible migration.
+- Preserve the existing Phase 1 implementation.
+
+## Traceability
+
+- Work order: RWO-1 / WO-34.
+- Baseline commit: `cc0a35248063a9fadd22ca8e4b3e9bd523c1468e`.
+- Evidence package commit: `42946467154a68a1e576a87f486493d61b85eafb`.
+- Candidate validation branch: `feature/phase-1-foundation-rc`.
+- Prior quality evidence: Workspace quality run 33950095685 and Foundation validation run 33950095701.

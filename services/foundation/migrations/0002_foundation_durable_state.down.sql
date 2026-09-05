@@ -1,0 +1,16 @@
+BEGIN;
+DROP TRIGGER IF EXISTS organizations_protect_delete ON organizations;
+DROP FUNCTION IF EXISTS prevent_organization_deletion();
+DROP TRIGGER IF EXISTS organizations_validate_parent ON organizations;
+DROP FUNCTION IF EXISTS organization_scope_is_valid();
+DROP TABLE IF EXISTS hierarchy_outbox_records;
+DROP TABLE IF EXISTS approvals;
+DROP TRIGGER IF EXISTS audit_records_immutable ON audit_records;
+DROP FUNCTION IF EXISTS reject_audit_mutation();
+DROP TABLE IF EXISTS audit_records;
+DROP TABLE IF EXISTS authorization_decisions;
+DROP TABLE IF EXISTS session_revocations;
+DROP TABLE IF EXISTS authorization_grants;
+DROP TABLE IF EXISTS organization_operational_dependencies;
+DROP TABLE IF EXISTS organizations;
+COMMIT;

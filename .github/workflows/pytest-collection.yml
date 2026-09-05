@@ -1,0 +1,24 @@
+name: Pytest collection diagnostics
+
+on:
+  push:
+    branches:
+      - feature/**
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: 0.6.3
+      - name: Resolve Python dependencies
+        run: uv sync --all-groups
+      - name: Record resolved Kafka client version
+        run: uv run python -c "import kafka; print(kafka.__file__); print(kafka.__version__)"
+      - name: Capture pytest collection traceback
+        run: uv run pytest --collect-only -vv

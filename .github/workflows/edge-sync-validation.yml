@@ -1,0 +1,70 @@
+name: Edge sync validation
+
+on:
+  push:
+    branches: [feature/phase-1-foundation-rc]
+    paths:
+      - "crates/edge-sync/**"
+      - "crates/edge-sync-reconciliation/**"
+      - "Cargo.toml"
+      - "rust-toolchain.toml"
+      - "rustfmt.toml"
+      - ".github/workflows/edge-sync-validation.yml"
+  pull_request:
+    paths:
+      - "crates/edge-sync/**"
+      - "crates/edge-sync-reconciliation/**"
+      - "Cargo.toml"
+      - "rust-toolchain.toml"
+      - "rustfmt.toml"
+      - ".github/workflows/edge-sync-validation.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - name: Record toolchain and workspace state
+        run: |
+          rustc --version --verbose
+          cargo --version --verbose
+          rustfmt --version
+          test -f rust-toolchain.toml && cat rust-toolchain.toml
+          cat rustfmt.toml
+          cargo metadata --no-deps --format-version 1
+      - name: Check edge-sync formatting
+        run: cargo fmt -p edge-sync -- --check
+      - name: Diagnose reconciliation formatting
+        run: |
+          set +e
+          file=crates/edge-sync-reconciliation/src/lib.rs
+          sha256sum "$file"
+          cargo fmt -p edge-sync-reconciliation -- --check
+          check_exit=$?
+          cargo fmt -p edge-sync-reconciliation
+          format_exit=$?
+          sha256sum "$file"
+          git diff --check
+          diff_check_exit=$?
+          git diff -- crates/edge-sync-reconciliation
+          git status --short
+          cargo fmt -p edge-sync-reconciliation -- --check
+          recheck_exit=$?
+          test "$check_exit" -eq 0
+          test "$format_exit" -eq 0
+          test "$diff_check_exit" -eq 0
+          test "$recheck_exit" -eq 0
+      - name: Test edge crates
+        run: cargo test -p edge-sync -p edge-sync-reconciliation
+      - name: Lint edge crates
+        run: |
+          set -o pipefail
+          cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings 2>&1 | tee clippy.stderr.log
+      - name: Upload complete Clippy stderr
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-clippy-stderr
+          path: clippy.stderr.log
+          if-no-files-found: error

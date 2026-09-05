@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["crates/transaction-core", "crates/edge-sync", "crates/edge-sync-reconciliation"]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"

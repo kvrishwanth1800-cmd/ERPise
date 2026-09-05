@@ -1,0 +1,86 @@
+name: Integration execution diagnostics
+
+on:
+  push:
+    branches:
+      - feature/**
+
+permissions:
+  contents: read
+
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17.4-alpine
+        env:
+          POSTGRES_DB: erpise
+          POSTGRES_USER: erpise
+          POSTGRES_PASSWORD: change-me-local-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U erpise -d erpise"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redpanda:
+        image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
+        ports:
+          - 19092:19092
+        options: >-
+          --health-cmd "rpk cluster health --api-urls localhost:9644"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+        command: >-
+          redpanda start
+          --overprovisioned
+          --smp 1
+          --memory 1G
+          --reserve-memory 0M
+          --node-id 0
+          --check=false
+          --kafka-addr PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092
+          --advertise-kafka-addr PLAINTEXT://redpanda:9092,OUTSIDE://localhost:19092
+          --pandaproxy-addr 0.0.0.0:8082
+          --advertise-pandaproxy-addr localhost:8082
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: 0.6.3
+      - name: Sync Python workspace
+        run: uv sync --all-groups
+      - name: Run exact CI integration-test command
+        id: pytest
+        continue-on-error: true
+        env:
+          TEST_DATABASE_URL: postgresql://erpise:change-me-local-only@localhost:5432/erpise
+          TEST_REDPANDA_BOOTSTRAP_SERVERS: localhost:19092
+        run: |
+          set -o pipefail
+          uv run pytest services > pytest-execution.log 2>&1
+          status=$?
+          sed -n '1,240p' pytest-execution.log
+          exit "$status"
+      - name: Surface pytest output as check annotation
+        if: steps.pytest.outcome == 'failure'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path("pytest-execution.log").read_text(encoding="utf-8")
+          text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::error title=Pytest integration execution output::{text}")
+          PY
+      - name: Upload pytest execution output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-execution-output
+          path: pytest-execution.log
+          if-no-files-found: error
+      - name: Return pytest exit code
+        if: steps.pytest.outcome == 'failure'
+        run: exit 1

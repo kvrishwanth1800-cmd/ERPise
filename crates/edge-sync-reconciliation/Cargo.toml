@@ -1,0 +1,13 @@
+[package]
+name = "edge-sync-reconciliation"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+edge-sync = { path = "../edge-sync" }
+
+[dev-dependencies]
+serde_json = "1.0.139"
+tempfile = "3.16.0"
