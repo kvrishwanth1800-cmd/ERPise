@@ -194,7 +194,7 @@ impl EdgeStore {
         Ok(store)
     }
 
-    pub fn migrate(&self) -> Result<()> {
+    pub fn migrate(&mut self) -> Result<()> {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -259,7 +259,7 @@ impl EdgeStore {
     }
 
     /// Initial enrollment is insert-only. Credential rotation requires controlled re-enrollment.
-    pub fn enroll(&self, binding: &DeviceBinding, occurred_at: i64) -> Result<()> {
+    pub fn enroll(&mut self, binding: &DeviceBinding, occurred_at: i64) -> Result<()> {
         binding.validate()?;
         let transaction = self
             .connection
@@ -280,7 +280,7 @@ impl EdgeStore {
         Ok(())
     }
 
-    pub fn revoke(&self, device_id: &str, occurred_at: i64) -> Result<()> {
+    pub fn revoke(&mut self, device_id: &str, occurred_at: i64) -> Result<()> {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -297,7 +297,7 @@ impl EdgeStore {
     }
 
     pub fn queue_sale(
-        &self,
+        &mut self,
         binding: &DeviceBinding,
         command: &SaleCommand,
         now: i64,
@@ -340,7 +340,15 @@ impl EdgeStore {
                  WHERE sequence > (SELECT sequence FROM edge_cursor WHERE singleton = 1)
                  ORDER BY sequence LIMIT 1",
                 [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
             )
             .optional()?;
         let Some((sequence, retry_count, next_attempt_at, state, payload)) = row else {
@@ -363,7 +371,7 @@ impl EdgeStore {
     }
 
     pub fn reconcile(
-        &self,
+        &mut self,
         binding: &DeviceBinding,
         result: &EdgeOperationReconciled,
         now: i64,
@@ -372,7 +380,9 @@ impl EdgeStore {
     ) -> Result<()> {
         self.authorize(binding)?;
         if result.sequence <= 0 || retry_limit < 0 || retry_cap_seconds < 1 {
-            return Err(EdgeSyncError::InvalidInput("invalid reconciliation configuration"));
+            return Err(EdgeSyncError::InvalidInput(
+                "invalid reconciliation configuration",
+            ));
         }
         if result.diagnostic_code.trim().is_empty() || result.diagnostic_code.len() > 128 {
             return Err(EdgeSyncError::InvalidInput("invalid diagnostic code"));
@@ -451,9 +461,16 @@ impl EdgeStore {
         Ok(())
     }
 
-    pub fn freshness(&self, connected: bool, now: i64, stale_after_seconds: i64) -> Result<Freshness> {
+    pub fn freshness(
+        &self,
+        connected: bool,
+        now: i64,
+        stale_after_seconds: i64,
+    ) -> Result<Freshness> {
         if stale_after_seconds < 0 {
-            return Err(EdgeSyncError::InvalidInput("stale threshold must be non-negative"));
+            return Err(EdgeSyncError::InvalidInput(
+                "stale threshold must be non-negative",
+            ));
         }
         let last: Option<i64> = self.connection.query_row(
             "SELECT last_successful_sync_at FROM edge_cursor WHERE singleton = 1",
@@ -481,7 +498,15 @@ impl EdgeStore {
                 "SELECT tenant_id, site_id, register_id, credential_id, revoked
                  FROM device_binding WHERE device_id = ?1",
                 [&binding.device_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
             )
             .optional()?;
         match row {
@@ -490,13 +515,21 @@ impl EdgeStore {
                     && tenant == binding.tenant_id
                     && site == binding.site_id
                     && register == binding.register_id
-                    && credential == binding.credential_id => Ok(()),
+                    && credential == binding.credential_id =>
+            {
+                Ok(())
+            }
             _ => Err(EdgeSyncError::DeviceNotAuthorized),
         }
     }
 }
 
-fn audit(transaction: &Transaction<'_>, action: &str, trace_id: &str, occurred_at: i64) -> Result<()> {
+fn audit(
+    transaction: &Transaction<'_>,
+    action: &str,
+    trace_id: &str,
+    occurred_at: i64,
+) -> Result<()> {
     transaction.execute(
         "INSERT INTO edge_audit (trace_id, action, details, occurred_at) VALUES (?1, ?2, ?3, ?4)",
         params![trace_id, action, "{\"redacted\":true}", occurred_at],
@@ -540,14 +573,14 @@ mod tests {
 
     fn store() -> (NamedTempFile, EdgeStore) {
         let file = NamedTempFile::new().unwrap();
-        let store = EdgeStore::open_encrypted(file.path(), &TestKeys(7), "device-a").unwrap();
+        let mut store = EdgeStore::open_encrypted(file.path(), &TestKeys(7), "device-a").unwrap();
         store.enroll(&binding(), 1).unwrap();
         (file, store)
     }
 
     #[test]
     fn reopens_only_with_the_same_key() {
-        let (file, store) = store();
+        let (file, mut store) = store();
         store.queue_sale(&binding(), &command("one"), 1).unwrap();
         drop(store);
         assert!(EdgeStore::open_encrypted(file.path(), &TestKeys(7), "device-a").is_ok());
@@ -556,7 +589,7 @@ mod tests {
 
     #[test]
     fn delayed_head_blocks_later_operations() {
-        let (_, store) = store();
+        let (_, mut store) = store();
         let first = store.queue_sale(&binding(), &command("one"), 1).unwrap();
         store.queue_sale(&binding(), &command("two"), 1).unwrap();
         store
@@ -577,7 +610,7 @@ mod tests {
 
     #[test]
     fn cursor_rejects_out_of_order_reconciliation() {
-        let (_, store) = store();
+        let (_, mut store) = store();
         store.queue_sale(&binding(), &command("one"), 1).unwrap();
         let second = store.queue_sale(&binding(), &command("two"), 1).unwrap();
         let error = store
@@ -598,7 +631,7 @@ mod tests {
 
     #[test]
     fn revoked_or_mismatched_binding_blocks_work() {
-        let (_, store) = store();
+        let (_, mut store) = store();
         let mut mismatched = binding();
         mismatched.register_id = "register-b".into();
         assert!(matches!(
