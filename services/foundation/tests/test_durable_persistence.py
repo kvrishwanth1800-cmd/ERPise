@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from pathlib import Path
 from threading import Barrier, Thread
 
@@ -17,7 +18,7 @@ DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 
 
 @pytest.fixture()
-def database() -> psycopg.Connection[object]:
+def database() -> Iterator[psycopg.Connection[object]]:
     if not DATABASE_URL:
         pytest.skip("TEST_DATABASE_URL is required for PostgreSQL integration tests")
     connection = psycopg.connect(DATABASE_URL)
