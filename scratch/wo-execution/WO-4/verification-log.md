@@ -1,32 +1,24 @@
-# WO-4 verification log
+# RWO-4 verification log
 
-## Fulfillment check
+## Baseline
 
-- AC-IAM-001.1: `AuthorizationService` requires an explicit grant. Missing or inapplicable grants raise `AuthorizationDeniedError`.
-- AC-IAM-001.2: `SessionRevocationService` records revoked sessions. Authorization denies later work that uses a revoked session.
-- AC-IAM-001.3: `AuthorizationService` rejects a second conflicting requester, approver, payer, bank-editor, or reconciler duty for a principal.
-- AC-IAM-001.4: Authorization compares the grant tenant to `ScopeContext`, checks authorized organization scope, and constrains record identifiers when the grant specifies them.
-- Events: allow and deny decisions record `AccessDecisionRecorded`; revocations record `SessionRevoked`.
-- CI evidence: [Workspace quality run 33900410157](https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33900410157) passed. [Foundation validation run 33900410074](https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/33900410074) passed. Validated implementation commit: `2e94a0241008cbae9aefc8db2f971a01434885e4`.
-- Security: no production credentials, external identity-provider configuration, deployment, or irreversible migration is included.
-- Rollback: revert the WO-4 implementation commits from `7fe36a9f245b49fc8cdfaadcbbc9db289b8090a7` through this evidence commit.
+- Dependency: WO-31 is complete. The durable outbox and Redpanda delivery validation passed before RWO-4 began.
+- Existing edge runtime: `crates/edge-sync/src/lib.rs` already provides encrypted SQLCipher-backed state, device binding, queued operation ordering, duplicate-safe reconciliation outcomes, retry scheduling, controlled recovery, freshness state, and local audit records.
+- Baseline command to run before code changes: `cargo test -p edge-sync`.
+- Evidence rule: Record the exact command, exit code, failing test, and traceback before any failure remediation. Distinguish collection, execution, environment, service configuration, and workspace-quality failures.
 
-## Final role sign-off
+## Acceptance evidence
 
-### Delivery Manager
-- Scope complete: PASS
-- Dependencies satisfied: PASS
-- Acceptance evidence complete: PASS
-- Status recommendation: COMPLETE
+| Criterion | Status | Evidence |
+| --- | --- | --- |
+| AC-EDG-001.1 offline permitted actions | Not yet executed | Pending baseline and focused test execution |
+| AC-EDG-001.2 reconnect without duplicate effects | Not yet executed | Pending focused reconciliation execution |
+| AC-EDG-001.3 operator freshness state | Not yet executed | Pending focused freshness execution |
+| AC-EDG-001.4 controlled recovery | Not yet executed | Pending focused recovery execution |
 
-### Software Engineering Tech Lead
-- Architecture compliant: PASS
-- Security and data integrity: PASS
-- Contracts and migrations compatible: PASS
-- Tests and operations sufficient: PASS
+## Lessons learned
 
-### Clean-Code Optimizer
-- Formatting, lint, and type checks: PASS
-- Duplication and complexity review: PASS
-- Performance review: NOT APPLICABLE
-- Behavior preserved after optimization: PASS
+- Capture the actual failing command and complete diagnostics before changing code or configuration.
+- Validate changes in small increments and rerun relevant tests immediately.
+- Record root cause, fix, verification, and prevention for each failure.
+- Full workspace and foundation validation are final gates, not substitutes for focused evidence.
