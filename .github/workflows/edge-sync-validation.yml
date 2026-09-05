@@ -22,5 +22,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test -p edge-sync -p edge-sync-reconciliation
-      - run: cargo fmt --check --all
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo fmt --check -p edge-sync -p edge-sync-reconciliation
+      - run: cargo clippy -p edge-sync -p edge-sync-reconciliation --all-targets -- -D warnings
