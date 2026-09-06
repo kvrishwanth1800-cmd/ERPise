@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
 
 from foundation.access import AuthorizationService
 from foundation.audit import AuditRecorder
@@ -73,7 +72,7 @@ class ProductInformationService:
         command: ProductCommand,
         trace_id: str,
     ) -> ProductRecord:
-        self._authorize(principal_id, session_id, scope, "product.write")
+        self._authorize(principal_id, session_id, scope)
         self._validate(command)
         key = (scope.tenant_id, command.product_id)
         if key in self._products:
@@ -95,7 +94,7 @@ class ProductInformationService:
         lifecycle_status: str,
         trace_id: str,
     ) -> ProductRecord:
-        self._authorize(principal_id, session_id, scope, "product.write")
+        self._authorize(principal_id, session_id, scope)
         if lifecycle_status not in _LIFECYCLE_STATUSES:
             raise ProductValidationError("lifecycle status must be draft, active, or discontinued")
         key = (scope.tenant_id, product_id)
@@ -124,7 +123,7 @@ class ProductInformationService:
         commands: tuple[ProductCommand, ...],
         trace_id: str,
     ) -> tuple[ProductRecord, ...]:
-        self._authorize(principal_id, session_id, scope, "product.write")
+        self._authorize(principal_id, session_id, scope)
         pending_ids: set[str] = set()
         pending_products: set[str] = set()
         for command in commands:
@@ -150,8 +149,8 @@ class ProductInformationService:
             raise ProductValidationError("product is outside the tenant scope")
         return record
 
-    def _authorize(self, principal_id: str, session_id: str, scope: ScopeContext, action: str) -> None:
-        self._authorization.authorize(principal_id, session_id, scope, action)
+    def _authorize(self, principal_id: str, session_id: str, scope: ScopeContext) -> None:
+        self._authorization.authorize(principal_id, session_id, scope, "product.write")
 
     @staticmethod
     def _validate(command: ProductCommand) -> None:
@@ -192,10 +191,26 @@ class ProductInformationService:
             self._identifier_owners[(record.tenant_id, identifier)] = record.product_id
 
     def _record_audit(self, principal_id: str, trace_id: str, result: str) -> None:
-        self._audit.record(principal_id, "product-administration", "product", result, "product.write", trace_id, result)
+        self._audit.record(
+            principal_id,
+            "product-administration",
+            "product",
+            result,
+            "product.write",
+            trace_id,
+            result,
+        )
 
     def _publish(self, record: ProductRecord, event_type: str, trace_id: str) -> None:
-        self.outbox.append(ProductEvent(event_type, record.product_id, record.tenant_id, record.lifecycle_status, trace_id))
+        self.outbox.append(
+            ProductEvent(
+                event_type,
+                record.product_id,
+                record.tenant_id,
+                record.lifecycle_status,
+                trace_id,
+            )
+        )
 
 
 class ProductAdministrationApi:
@@ -204,11 +219,40 @@ class ProductAdministrationApi:
     def __init__(self, service: ProductInformationService) -> None:
         self._service = service
 
-    def create_product(self, principal_id: str, session_id: str, scope: ScopeContext, command: ProductCommand, trace_id: str) -> ProductRecord:
+    def create_product(
+        self,
+        principal_id: str,
+        session_id: str,
+        scope: ScopeContext,
+        command: ProductCommand,
+        trace_id: str,
+    ) -> ProductRecord:
         return self._service.create(principal_id, session_id, scope, command, trace_id)
 
-    def import_products(self, principal_id: str, session_id: str, scope: ScopeContext, commands: tuple[ProductCommand, ...], trace_id: str) -> tuple[ProductRecord, ...]:
+    def import_products(
+        self,
+        principal_id: str,
+        session_id: str,
+        scope: ScopeContext,
+        commands: tuple[ProductCommand, ...],
+        trace_id: str,
+    ) -> tuple[ProductRecord, ...]:
         return self._service.import_products(principal_id, session_id, scope, commands, trace_id)
 
-    def change_lifecycle(self, principal_id: str, session_id: str, scope: ScopeContext, product_id: str, lifecycle_status: str, trace_id: str) -> ProductRecord:
-        return self._service.change_lifecycle(principal_id, session_id, scope, product_id, lifecycle_status, trace_id)
+    def change_lifecycle(
+        self,
+        principal_id: str,
+        session_id: str,
+        scope: ScopeContext,
+        product_id: str,
+        lifecycle_status: str,
+        trace_id: str,
+    ) -> ProductRecord:
+        return self._service.change_lifecycle(
+            principal_id,
+            session_id,
+            scope,
+            product_id,
+            lifecycle_status,
+            trace_id,
+        )
