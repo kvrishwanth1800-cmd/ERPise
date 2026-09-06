@@ -67,3 +67,14 @@ def test_identifier_unique_within_tenant_and_migration_rolls_back(database: psyc
         assert cursor.fetchone() == (1,)
         cursor.execute("SELECT count(*) FROM durable_outbox_records")
         assert cursor.fetchone() == (1,)
+
+
+def test_failed_durable_import_rolls_back_all_products_and_event(database: psycopg.Connection[object]) -> None:
+    store = DurableProductStore(database)
+    with pytest.raises(psycopg.Error):
+        store.import_products((record("product-1", "shared"), record("product-2", "shared")), "trace-import")
+    with database.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM products")
+        assert cursor.fetchone() == (0,)
+        cursor.execute("SELECT count(*) FROM durable_outbox_records")
+        assert cursor.fetchone() == (0,)

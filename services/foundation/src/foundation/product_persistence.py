@@ -24,6 +24,29 @@ class DurableProductStore:
         event = self._event(record, "ProductChanged", trace_id)
         self._outbox.commit_business_event(event, lambda cursor: self._insert(cursor, record))
 
+    def import_products(self, records: tuple[ProductRecord, ...], trace_id: str) -> None:
+        """Commit a validated import and one ProductChanged import event atomically."""
+        if not records:
+            return
+        tenant_id = records[0].tenant_id
+        if any(record.tenant_id != tenant_id for record in records):
+            raise ProductValidationError("all imported products must belong to one tenant")
+        event = DurableEvent(
+            f"ProductChanged-{tenant_id}-import-{trace_id}",
+            tenant_id,
+            "ProductChanged",
+            "v1",
+            trace_id,
+            {"product_ids": [record.product_id for record in records], "operation": "import"},
+            datetime.now(UTC),
+        )
+
+        def write(cursor: psycopg.Cursor[Any]) -> None:
+            for record in records:
+                self._insert(cursor, record)
+
+        self._outbox.commit_business_event(event, write)
+
     def change_lifecycle(self, record: ProductRecord, trace_id: str) -> None:
         event = self._event(record, "ProductLifecycleChanged", trace_id)
 
@@ -87,13 +110,7 @@ class DurableProductStore:
         cursor.execute(
             "INSERT INTO products (product_id, tenant_id, name, unit_of_measure, lifecycle_status) "
             "VALUES (%s, %s, %s, %s, %s)",
-            (
-                record.product_id,
-                record.tenant_id,
-                record.name,
-                record.unit_of_measure,
-                record.lifecycle_status,
-            ),
+            (record.product_id, record.tenant_id, record.name, record.unit_of_measure, record.lifecycle_status),
         )
         for identifier in record.identifiers:
             cursor.execute(
