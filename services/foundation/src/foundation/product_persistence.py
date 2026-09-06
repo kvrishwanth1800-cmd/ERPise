@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """PostgreSQL persistence for tenant-scoped Product Information."""
 
 from __future__ import annotations

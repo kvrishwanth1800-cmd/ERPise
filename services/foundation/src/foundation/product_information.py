@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Tenant-scoped Product Information commands and API contracts."""
 
 from __future__ import annotations
