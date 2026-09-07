@@ -38,13 +38,7 @@ class PriceScope:
         return self.store_id, self.channel_id, self.segment_id, self.currency
 
     def matches(self, query: PriceScope) -> bool:
-        return (
-            self.currency == query.currency
-            and all(
-                expected is None or expected == actual
-                for expected, actual in zip(self.values[:3], query.values[:3], strict=True)
-            )
-        )
+        return self.currency == query.currency and all(expected is None or expected == actual for expected, actual in zip(self.values[:3], query.values[:3], strict=True))
 
 
 @dataclass(frozen=True)
@@ -57,9 +51,7 @@ class PriceEntry:
     effective_until: datetime | None = None
 
     def effective_at(self, at: datetime) -> bool:
-        return self.effective_from <= at and (
-            self.effective_until is None or at < self.effective_until
-        )
+        return self.effective_from <= at and (self.effective_until is None or at < self.effective_until)
 
 
 @dataclass(frozen=True)
@@ -75,9 +67,7 @@ class Promotion:
     coupon_code: str | None = None
 
     def effective_at(self, at: datetime) -> bool:
-        return self.effective_from <= at and (
-            self.effective_until is None or at < self.effective_until
-        )
+        return self.effective_from <= at and (self.effective_until is None or at < self.effective_until)
 
 
 @dataclass(frozen=True)
@@ -165,20 +155,11 @@ class PricingEngine:
             self.outbox.append(PricingEvent("CouponCommitted", quote, coupon_code, trace_id))
 
     def _price_for(self, tenant_id: str, request: QuoteRequest) -> PriceEntry | None:
-        candidates = [
-            entry for (entry_tenant, _, product_id, _), entry in self._prices.items()
-            if entry_tenant == tenant_id and product_id == request.product_id
-            and entry.scope.matches(request.scope) and entry.effective_at(request.at)
-        ]
+        candidates = [entry for (entry_tenant, _, product_id, _), entry in self._prices.items() if entry_tenant == tenant_id and product_id == request.product_id and entry.scope.matches(request.scope) and entry.effective_at(request.at)]
         return min(candidates, key=self._price_sort_key) if candidates else None
 
     def _calculate(self, tenant_id: str, request: QuoteRequest, price: PriceEntry) -> Quote:
-        candidates = [
-            promotion for (promotion_tenant, _), promotion in self._promotions.items()
-            if promotion_tenant == tenant_id and promotion.product_id == request.product_id
-            and promotion.scope.matches(request.scope) and promotion.effective_at(request.at)
-            and (promotion.coupon_code is None or promotion.coupon_code == request.coupon_code)
-        ]
+        candidates = [promotion for (promotion_tenant, _), promotion in self._promotions.items() if promotion_tenant == tenant_id and promotion.product_id == request.product_id and promotion.scope.matches(request.scope) and promotion.effective_at(request.at) and (promotion.coupon_code is None or promotion.coupon_code == request.coupon_code)]
         ordered = sorted(candidates, key=self._promotion_sort_key)
         exclusive = next((promotion for promotion in ordered if not promotion.stackable), None)
         selected = (exclusive,) if exclusive is not None else tuple(ordered)
@@ -197,11 +178,11 @@ class PricingEngine:
 
     @staticmethod
     def _promotion_sort_key(promotion: Promotion) -> tuple[int, int, float, str]:
-        return (-promotion.priority, -promotion.scope.specificity, -promotion.effective_from.timestamp(), promotion.promotion_id)
+        return -promotion.priority, -promotion.scope.specificity, -promotion.effective_from.timestamp(), promotion.promotion_id
 
     def _reject_overlapping_price(self, tenant_id: str, candidate: PriceEntry) -> None:
-        for (existing_tenant, _, product_id, _), existing in self._prices.items():
-            if existing_tenant == tenant_id and product_id == candidate.product_id and existing.scope == candidate.scope and self._windows_overlap(existing, candidate):
+        for (existing_tenant, price_list_id, product_id, _), existing in self._prices.items():
+            if existing_tenant == tenant_id and price_list_id == candidate.price_list_id and product_id == candidate.product_id and existing.scope == candidate.scope and self._windows_overlap(existing, candidate):
                 raise PricingValidationError("overlapping price entry for product and scope")
 
     @staticmethod
