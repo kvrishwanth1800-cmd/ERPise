@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 import pytest
 
@@ -53,7 +54,7 @@ def publish_promotion(subject: PricingEngine, item: Promotion) -> None:
     subject.publish_promotion("merchandiser", "session", scope(), item, "trace")
 
 
-def quote(subject: PricingEngine, pricing_scope: PriceScope, coupon: str | None = None):
+def quote(subject: PricingEngine, pricing_scope: PriceScope, coupon: str | None = None) -> Any:
     return subject.quote(scope(), QuoteRequest("tea", pricing_scope, NOW, coupon), "quote-trace")
 
 
