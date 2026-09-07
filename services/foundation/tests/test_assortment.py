@@ -8,6 +8,7 @@ from foundation.access import (
     AuthorizationDeniedError,
     AuthorizationService,
     PermissionGrant,
+    SessionRevocationService,
 )
 from foundation.assortment import (
     AssortmentCommand,
@@ -17,12 +18,11 @@ from foundation.assortment import (
 from foundation.audit import AuditRecorder
 from foundation.organization import ScopeContext
 
-
 NOW = datetime(2026, 9, 6, 12, tzinfo=UTC)
 
 
 def service() -> AssortmentPublicationService:
-    authorization = AuthorizationService()
+    authorization = AuthorizationService(SessionRevocationService())
     authorization.grant(
         PermissionGrant("merchandiser", "tenant-a", "assortment.write")
     )
@@ -89,6 +89,7 @@ def test_not_yet_effective_and_expired_assortments_are_excluded() -> None:
     result = subject.published_eligibility(
         tenant(), AssortmentScope(channel_id="web"), NOW
     )
+
     assert result.product_ids == ()
 
 
@@ -160,7 +161,9 @@ def test_tenant_isolation_excludes_other_tenant_assortments() -> None:
         command("channel", AssortmentScope(channel_id="web"), ("tea",)),
     )
 
-    result = subject.preview(tenant("tenant-b"), AssortmentScope(channel_id="web"), NOW)
+    result = subject.preview(
+        tenant("tenant-b"), AssortmentScope(channel_id="web"), NOW
+    )
 
     assert result.product_ids == ()
 
