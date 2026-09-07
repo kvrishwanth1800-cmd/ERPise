@@ -1,4 +1,4 @@
-# ruff: noqa: E501
+# ruff: noqa: E501, I001
 from __future__ import annotations
 
 import os
@@ -25,14 +25,7 @@ def database() -> Iterator[psycopg.Connection[object]]:
     if not DATABASE_URL:
         pytest.skip("TEST_DATABASE_URL is required for PostgreSQL integration tests")
     connection = psycopg.connect(DATABASE_URL)
-    up = (
-        "0001_operations_evidence.up.sql",
-        "0002_foundation_durable_state.up.sql",
-        "0003_durable_outbox_replay.up.sql",
-        "0004_product_information.up.sql",
-        "0005_catalog_assortment.up.sql",
-        "0006_pricing_promotions.up.sql",
-    )
+    up = ("0001_operations_evidence.up.sql", "0002_foundation_durable_state.up.sql", "0003_durable_outbox_replay.up.sql", "0004_product_information.up.sql", "0005_catalog_assortment.up.sql", "0006_pricing_promotions.up.sql")
     for name in up:
         with connection.cursor() as cursor:
             cursor.execute((MIGRATIONS / name).read_text())
@@ -62,7 +55,6 @@ def test_pricing_wildcard_scope_and_events_are_durable(database: psycopg.Connect
     store = DurablePricingStore(database)
     store.publish_price("tenant-a", price(), "price-trace")
     store.publish_promotion("tenant-a", promotion(), "promotion-trace")
-
     with database.cursor() as cursor:
         cursor.execute("SELECT store_id, channel_id, segment_id FROM price_entries")
         assert cursor.fetchone() == (None, None, None)
@@ -74,10 +66,8 @@ def test_coupon_commit_is_idempotent_only_for_the_same_quote(database: psycopg.C
     store = DurablePricingStore(database)
     store.commit_coupon("tenant-a", "SAVE10", "tea|USD|10.00|retail", "coupon-one")
     store.commit_coupon("tenant-a", "SAVE10", "tea|USD|10.00|retail", "coupon-two")
-
     with pytest.raises(CouponAlreadyCommittedError):
         store.commit_coupon("tenant-a", "SAVE10", "tea|USD|9.00|retail", "coupon-three")
-
     with database.cursor() as cursor:
         cursor.execute("SELECT quote_key FROM coupon_commits")
         assert cursor.fetchone() == ("tea|USD|10.00|retail",)
@@ -88,7 +78,6 @@ def test_coupon_commit_is_idempotent_only_for_the_same_quote(database: psycopg.C
 def test_price_insert_rolls_back_fact_and_event_on_missing_product(database: psycopg.Connection[object]) -> None:
     with pytest.raises(psycopg.Error):
         DurablePricingStore(database).publish_price("tenant-a", price(), "failed-price")
-
     with database.cursor() as cursor:
         cursor.execute("SELECT count(*) FROM price_entries")
         assert cursor.fetchone() == (0,)

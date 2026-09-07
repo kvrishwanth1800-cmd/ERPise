@@ -1,3 +1,4 @@
+# ruff: noqa: E501, I001
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -36,27 +37,12 @@ def engine() -> PricingEngine:
     return PricingEngine(authorization, AuditRecorder())
 
 
-def price(
-    list_id: str,
-    amount: str,
-    pricing_scope: PriceScope,
-    start: datetime = NOW - timedelta(days=1),
-    end: datetime | None = None,
-) -> PriceEntry:
+def price(list_id: str, amount: str, pricing_scope: PriceScope, start: datetime = NOW - timedelta(days=1), end: datetime | None = None) -> PriceEntry:
     return PriceEntry(list_id, "tea", pricing_scope, Decimal(amount), start, end)
 
 
-def promotion(
-    promotion_id: str,
-    percent: str,
-    pricing_scope: PriceScope,
-    priority: int = 1,
-    stackable: bool = True,
-    coupon: str | None = None,
-) -> Promotion:
-    return Promotion(
-        promotion_id, "tea", pricing_scope, Decimal(percent), priority, stackable, NOW - timedelta(days=1), None, coupon
-    )
+def promotion(promotion_id: str, percent: str, pricing_scope: PriceScope, priority: int = 1, stackable: bool = True, coupon: str | None = None) -> Promotion:
+    return Promotion(promotion_id, "tea", pricing_scope, Decimal(percent), priority, stackable, NOW - timedelta(days=1), None, coupon)
 
 
 def publish_price(subject: PricingEngine, entry: PriceEntry) -> None:
@@ -76,9 +62,7 @@ def test_quote_selects_most_specific_price_with_stable_tie_break() -> None:
     publish_price(subject, price("z-list", "10.00", PriceScope(channel_id="web", currency="USD")))
     publish_price(subject, price("a-list", "11.00", PriceScope(channel_id="web", currency="USD")))
     publish_price(subject, price("store", "9.00", PriceScope(store_id="s1", channel_id="web", currency="USD")))
-
     result = quote(subject, PriceScope(store_id="s1", channel_id="web", currency="USD"))
-
     assert result.applied_price_list_id == "store"
     assert result.net_amount == Decimal("9.00")
 
@@ -89,11 +73,9 @@ def test_quote_applies_stackable_promotions_or_one_exclusive_promotion() -> None
     publish_price(subject, price("base", "100.00", pricing_scope))
     publish_promotion(subject, promotion("ten", "10", pricing_scope, priority=1))
     publish_promotion(subject, promotion("five", "5", pricing_scope, priority=1))
-
     stacked = quote(subject, pricing_scope)
     assert stacked.net_amount == Decimal("85.50")
     assert tuple(item.promotion_id for item in stacked.discounts) == ("five", "ten")
-
     publish_promotion(subject, promotion("exclusive", "20", pricing_scope, priority=9, stackable=False))
     exclusive = quote(subject, pricing_scope)
     assert exclusive.net_amount == Decimal("80.00")
@@ -105,9 +87,7 @@ def test_quote_rounding_boundaries_and_currency_are_deterministic() -> None:
     pricing_scope = PriceScope(channel_id="web", currency="USD")
     publish_price(subject, price("base", "10.005", pricing_scope))
     publish_promotion(subject, promotion("third", "33.333", pricing_scope))
-
     result = quote(subject, pricing_scope)
-
     assert result.list_price == Decimal("10.01")
     assert result.net_amount == Decimal("6.67")
     assert result.tax_basis_amount == result.net_amount
@@ -119,7 +99,6 @@ def test_price_rejects_overlapping_same_scope_and_boundary_end_is_valid() -> Non
     pricing_scope = PriceScope(channel_id="web", currency="USD")
     publish_price(subject, price("old", "10.00", pricing_scope, NOW - timedelta(days=2), NOW))
     publish_price(subject, price("new", "12.00", pricing_scope, NOW))
-
     assert quote(subject, pricing_scope).net_amount == Decimal("12.00")
     with pytest.raises(PricingValidationError, match="overlapping"):
         publish_price(subject, price("overlap", "11.00", pricing_scope, NOW - timedelta(hours=1)))
@@ -133,11 +112,8 @@ def test_tenant_isolation_coupon_idempotency_and_events() -> None:
     result = quote(subject, pricing_scope, "SAVE")
     subject.commit_coupon(scope(), "SAVE", result, "commit")
     subject.commit_coupon(scope(), "SAVE", result, "retry")
-
     with pytest.raises(CouponAlreadyCommittedError):
-        subject.commit_coupon(scope(), "SAVE", result.__class__(
-            "coffee", "USD", Decimal("1"), Decimal("0"), Decimal("1"), Decimal("1"), "base", ()
-        ), "repeat")
+        subject.commit_coupon(scope(), "SAVE", result.__class__("coffee", "USD", Decimal("1"), Decimal("0"), Decimal("1"), Decimal("1"), "base", ()), "repeat")
     with pytest.raises(PricingValidationError, match="no applicable"):
         subject.quote(scope("tenant-b"), QuoteRequest("tea", pricing_scope, NOW), "tenant-b")
     assert [event.event_type for event in subject.outbox] == ["QuoteCalculated", "CouponCommitted"]
