@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """PostgreSQL persistence for pricing facts and coupon commitments."""
 
 from __future__ import annotations
