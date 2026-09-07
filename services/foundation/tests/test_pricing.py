@@ -95,13 +95,13 @@ def test_quote_rounding_boundaries_and_currency_are_deterministic() -> None:
     assert result.currency == "USD"
 
 
-def test_price_rejects_overlapping_same_scope_and_boundary_end_is_valid() -> None:
+def test_price_rejects_duplicate_same_scope_and_boundary_end_is_valid() -> None:
     subject = engine()
     pricing_scope = PriceScope(channel_id="web", currency="USD")
     publish_price(subject, price("old", "10.00", pricing_scope, NOW - timedelta(days=2), NOW))
     publish_price(subject, price("new", "12.00", pricing_scope, NOW))
     assert quote(subject, pricing_scope).net_amount == Decimal("12.00")
-    with pytest.raises(PricingValidationError, match="overlapping"):
+    with pytest.raises(PricingValidationError, match="duplicate price entry"):
         publish_price(subject, price("new", "11.00", pricing_scope, NOW - timedelta(hours=1)))
 
 
