@@ -33,7 +33,7 @@ class EventBroker(Protocol):
         """Deliver an event. An exception leaves the record pending for recovery."""
 
 
-BusinessWrite = Callable[[psycopg.Cursor[Any]], None]
+BusinessWrite = Callable[[psycopg.Cursor[Any]], bool | None]
 ExternalEffect = Callable[[DurableEvent], None]
 
 
@@ -44,10 +44,15 @@ class DurableOutboxStore:
         self._connection = connection
 
     def commit_business_event(self, event: DurableEvent, business_write: BusinessWrite) -> None:
-        """Commit a business mutation and its event in one PostgreSQL transaction."""
+        """Commit a business mutation and its event in one PostgreSQL transaction.
+
+        A business writer can return ``False`` for an idempotent no-op. In that case no
+        second durable event or audit record is written.
+        """
         self._validate(event)
         with self._connection.transaction(), self._connection.cursor() as cursor:
-            business_write(cursor)
+            if business_write(cursor) is False:
+                return
             cursor.execute(
                 "INSERT INTO durable_outbox_records "
                 "(event_id, tenant_id, event_type, schema_version, trace_id, payload, occurred_at) "
@@ -68,7 +73,6 @@ class DurableOutboxStore:
             return tuple(self._event(row) for row in cursor.fetchall())
 
     def publish_pending(self, broker: EventBroker, max_attempts: int = 3) -> tuple[str, ...]:
-        """Publish committed records. A post-publish crash intentionally permits a retry."""
         published: list[str] = []
         for event in self.pending():
             try:
@@ -77,11 +81,7 @@ class DurableOutboxStore:
                 self._record_publish_failure(event, str(error), max_attempts)
                 continue
             with self._connection.transaction(), self._connection.cursor() as cursor:
-                cursor.execute(
-                    "UPDATE durable_outbox_records SET published_at = now(), publish_attempts = "
-                    "publish_attempts + 1, last_error = NULL WHERE event_id = %s AND published_at IS NULL",
-                    (event.event_id,),
-                )
+                cursor.execute("UPDATE durable_outbox_records SET published_at = now(), publish_attempts = publish_attempts + 1, last_error = NULL WHERE event_id = %s AND published_at IS NULL", (event.event_id,))
                 self._audit(cursor, event, "outbox.publish", "published")
                 published.append(event.event_id)
         return tuple(published)
@@ -93,19 +93,10 @@ class DurableOutboxStore:
             row = cursor.fetchone()
             if row is None or row[0] != event.tenant_id:
                 raise PermissionError("event is outside tenant scope")
-            cursor.execute(
-                "INSERT INTO consumer_event_progress (consumer_name, tenant_id, event_id, replayed) "
-                "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING RETURNING event_id",
-                (consumer_name, event.tenant_id, event.event_id, replay),
-            )
+            cursor.execute("INSERT INTO consumer_event_progress (consumer_name, tenant_id, event_id, replayed) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING RETURNING event_id", (consumer_name, event.tenant_id, event.event_id, replay))
             if cursor.fetchone() is None:
                 return False
-            cursor.execute(
-                "INSERT INTO replay_projection_effects (consumer_name, tenant_id, projection_key, logical_effect_count) "
-                "VALUES (%s, %s, %s, 1) ON CONFLICT (consumer_name, tenant_id, projection_key) "
-                "DO UPDATE SET logical_effect_count = replay_projection_effects.logical_effect_count + 1, updated_at = now()",
-                (consumer_name, event.tenant_id, projection_key),
-            )
+            cursor.execute("INSERT INTO replay_projection_effects (consumer_name, tenant_id, projection_key, logical_effect_count) VALUES (%s, %s, %s, 1) ON CONFLICT (consumer_name, tenant_id, projection_key) DO UPDATE SET logical_effect_count = replay_projection_effects.logical_effect_count + 1, updated_at = now()", (consumer_name, event.tenant_id, projection_key))
             self._audit(cursor, event, "projection.replay" if replay else "projection.consume", "applied")
         if not replay:
             external_effect(event)
@@ -152,7 +143,4 @@ class DurableOutboxStore:
 
     @staticmethod
     def _audit(cursor: psycopg.Cursor[Any], event: DurableEvent, source: str, result: str) -> None:
-        cursor.execute(
-            "INSERT INTO audit_records (audit_id, tenant_id, actor_id, authority, source, reason, policy, trace_id, result) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-            (f"audit-{source}-{event.event_id}-{result}", event.tenant_id, "event-platform", "system", source, event.event_type, event.schema_version, event.trace_id, result),
-        )
+        cursor.execute("INSERT INTO audit_records (audit_id, tenant_id, actor_id, authority, source, reason, policy, trace_id, result) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)", (f"audit-{source}-{event.event_id}-{result}", event.tenant_id, "event-platform", "system", source, event.event_type, event.schema_version, event.trace_id, result))

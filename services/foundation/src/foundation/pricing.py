@@ -1,3 +1,4 @@
+# ruff: noqa: E501, I001
 """Tenant-scoped deterministic pricing, promotions, and coupon commitment."""
 
 from __future__ import annotations
@@ -125,51 +126,24 @@ class PricingEngine:
         self._coupon_commits: dict[tuple[str, str], str] = {}
         self.outbox: list[PricingEvent] = []
 
-    def publish_price(
-        self,
-        principal_id: str,
-        session_id: str,
-        tenant_scope: ScopeContext,
-        entry: PriceEntry,
-        trace_id: str,
-    ) -> None:
-        self._authorization.authorize(
-            principal_id, session_id, tenant_scope, "pricing.write"
-        )
+    def publish_price(self, principal_id: str, session_id: str, tenant_scope: ScopeContext, entry: PriceEntry, trace_id: str) -> None:
+        self._authorization.authorize(principal_id, session_id, tenant_scope, "pricing.write")
         self._validate_price(entry)
-        key = (
-            tenant_scope.tenant_id,
-            entry.price_list_id,
-            entry.product_id,
-            self._scope_key(entry.scope),
-        )
+        key = (tenant_scope.tenant_id, entry.price_list_id, entry.product_id, self._scope_key(entry.scope))
         if key in self._prices:
             raise PricingValidationError("duplicate price entry")
         self._reject_overlapping_price(tenant_scope.tenant_id, entry)
         self._prices[key] = entry
-        self._audit.record(
-            principal_id, "pricing", "price-entry", "published", "pricing.write", trace_id, "allowed"
-        )
+        self._audit.record(principal_id, "pricing", "price-entry", "published", "pricing.write", trace_id, "allowed")
 
-    def publish_promotion(
-        self,
-        principal_id: str,
-        session_id: str,
-        tenant_scope: ScopeContext,
-        promotion: Promotion,
-        trace_id: str,
-    ) -> None:
-        self._authorization.authorize(
-            principal_id, session_id, tenant_scope, "pricing.write"
-        )
+    def publish_promotion(self, principal_id: str, session_id: str, tenant_scope: ScopeContext, promotion: Promotion, trace_id: str) -> None:
+        self._authorization.authorize(principal_id, session_id, tenant_scope, "pricing.write")
         self._validate_promotion(promotion)
         key = tenant_scope.tenant_id, promotion.promotion_id
         if key in self._promotions:
             raise PricingValidationError("duplicate promotion")
         self._promotions[key] = promotion
-        self._audit.record(
-            principal_id, "pricing", "promotion", "published", "pricing.write", trace_id, "allowed"
-        )
+        self._audit.record(principal_id, "pricing", "promotion", "published", "pricing.write", trace_id, "allowed")
 
     def quote(self, tenant_scope: ScopeContext, request: QuoteRequest, trace_id: str) -> Quote:
         self._validate_request(request)
@@ -180,13 +154,7 @@ class PricingEngine:
         self.outbox.append(PricingEvent("QuoteCalculated", quote, None, trace_id))
         return quote
 
-    def commit_coupon(
-        self,
-        tenant_scope: ScopeContext,
-        coupon_code: str,
-        quote: Quote,
-        trace_id: str,
-    ) -> None:
+    def commit_coupon(self, tenant_scope: ScopeContext, coupon_code: str, quote: Quote, trace_id: str) -> None:
         key = tenant_scope.tenant_id, coupon_code
         quote_key = self._quote_key(quote)
         committed = self._coupon_commits.get(key)
@@ -198,23 +166,17 @@ class PricingEngine:
 
     def _price_for(self, tenant_id: str, request: QuoteRequest) -> PriceEntry | None:
         candidates = [
-            entry
-            for (entry_tenant, _, product_id, _), entry in self._prices.items()
-            if entry_tenant == tenant_id
-            and product_id == request.product_id
-            and entry.scope.matches(request.scope)
-            and entry.effective_at(request.at)
+            entry for (entry_tenant, _, product_id, _), entry in self._prices.items()
+            if entry_tenant == tenant_id and product_id == request.product_id
+            and entry.scope.matches(request.scope) and entry.effective_at(request.at)
         ]
         return min(candidates, key=self._price_sort_key) if candidates else None
 
     def _calculate(self, tenant_id: str, request: QuoteRequest, price: PriceEntry) -> Quote:
         candidates = [
-            promotion
-            for (promotion_tenant, _), promotion in self._promotions.items()
-            if promotion_tenant == tenant_id
-            and promotion.product_id == request.product_id
-            and promotion.scope.matches(request.scope)
-            and promotion.effective_at(request.at)
+            promotion for (promotion_tenant, _), promotion in self._promotions.items()
+            if promotion_tenant == tenant_id and promotion.product_id == request.product_id
+            and promotion.scope.matches(request.scope) and promotion.effective_at(request.at)
             and (promotion.coupon_code is None or promotion.coupon_code == request.coupon_code)
         ]
         ordered = sorted(candidates, key=self._promotion_sort_key)
@@ -227,16 +189,7 @@ class PricingEngine:
             amount = self._money(amount - discount)
             discounts.append(DiscountExplanation(promotion.promotion_id, discount, "percentage discount"))
         discount_total = self._money(price.amount - amount)
-        return Quote(
-            request.product_id,
-            request.scope.currency,
-            self._money(price.amount),
-            discount_total,
-            amount,
-            amount,
-            price.price_list_id,
-            tuple(discounts),
-        )
+        return Quote(request.product_id, request.scope.currency, self._money(price.amount), discount_total, amount, amount, price.price_list_id, tuple(discounts))
 
     @staticmethod
     def _price_sort_key(entry: PriceEntry) -> tuple[int, float, str]:
@@ -244,21 +197,11 @@ class PricingEngine:
 
     @staticmethod
     def _promotion_sort_key(promotion: Promotion) -> tuple[int, int, float, str]:
-        return (
-            -promotion.priority,
-            -promotion.scope.specificity,
-            -promotion.effective_from.timestamp(),
-            promotion.promotion_id,
-        )
+        return (-promotion.priority, -promotion.scope.specificity, -promotion.effective_from.timestamp(), promotion.promotion_id)
 
     def _reject_overlapping_price(self, tenant_id: str, candidate: PriceEntry) -> None:
         for (existing_tenant, _, product_id, _), existing in self._prices.items():
-            if (
-                existing_tenant == tenant_id
-                and product_id == candidate.product_id
-                and existing.scope == candidate.scope
-                and self._windows_overlap(existing, candidate)
-            ):
+            if existing_tenant == tenant_id and product_id == candidate.product_id and existing.scope == candidate.scope and self._windows_overlap(existing, candidate):
                 raise PricingValidationError("overlapping price entry for product and scope")
 
     @staticmethod
@@ -292,9 +235,7 @@ class PricingEngine:
             raise PricingValidationError("price list, product, and currency are required")
         if entry.amount < Decimal("0"):
             raise PricingValidationError("price amount cannot be negative")
-        if entry.effective_from.tzinfo is None or (
-            entry.effective_until is not None and entry.effective_until.tzinfo is None
-        ):
+        if entry.effective_from.tzinfo is None or (entry.effective_until is not None and entry.effective_until.tzinfo is None):
             raise PricingValidationError("price times must be timezone-aware")
         if entry.effective_until is not None and entry.effective_until <= entry.effective_from:
             raise PricingValidationError("price end must be after start")
@@ -305,9 +246,7 @@ class PricingEngine:
             raise PricingValidationError("promotion, product, and currency are required")
         if promotion.discount_percent <= Decimal("0") or promotion.discount_percent > Decimal("100"):
             raise PricingValidationError("discount percent must be greater than zero and at most 100")
-        if promotion.effective_from.tzinfo is None or (
-            promotion.effective_until is not None and promotion.effective_until.tzinfo is None
-        ):
+        if promotion.effective_from.tzinfo is None or (promotion.effective_until is not None and promotion.effective_until.tzinfo is None):
             raise PricingValidationError("promotion times must be timezone-aware")
         if promotion.effective_until is not None and promotion.effective_until <= promotion.effective_from:
             raise PricingValidationError("promotion end must be after start")

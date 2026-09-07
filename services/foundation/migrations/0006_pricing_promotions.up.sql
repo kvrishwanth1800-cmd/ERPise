@@ -1,6 +1,7 @@
 BEGIN;
 
 CREATE TABLE price_entries (
+  price_entry_id TEXT PRIMARY KEY,
   tenant_id TEXT NOT NULL,
   price_list_id TEXT NOT NULL,
   product_id TEXT NOT NULL,
@@ -11,7 +12,6 @@ CREATE TABLE price_entries (
   amount NUMERIC(18, 4) NOT NULL CHECK (amount >= 0),
   effective_from TIMESTAMPTZ NOT NULL,
   effective_until TIMESTAMPTZ,
-  PRIMARY KEY (tenant_id, price_list_id, product_id, store_id, channel_id, segment_id, currency, effective_from),
   FOREIGN KEY (tenant_id, product_id) REFERENCES products (tenant_id, product_id) ON DELETE RESTRICT,
   CHECK (effective_until IS NULL OR effective_until > effective_from)
 );
