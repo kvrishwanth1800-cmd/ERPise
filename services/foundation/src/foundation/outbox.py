@@ -52,6 +52,7 @@ class TransactionalOutbox:
     def __init__(self) -> None:
         self._state: dict[str, object] = {}
         self._records: list[OutboxRecord] = []
+        self._event_ids: set[str] = set()
 
     @property
     def records(self) -> tuple[OutboxRecord, ...]:
@@ -62,8 +63,10 @@ class TransactionalOutbox:
         return dict(self._state)
 
     def commit(self, operation: Callable[[dict[str, object]], T], event: DomainEvent) -> T:
-        """Stage a state operation and add its event only after it succeeds."""
+        """Stage a state operation and append its unique event only after it succeeds."""
         self._validate_event(event)
+        if event.event_id in self._event_ids:
+            raise OutboxValidationError("Committed event identifiers must be unique.")
         staged_state = dict(self._state)
         result = operation(staged_state)
         record = OutboxRecord(
@@ -73,6 +76,7 @@ class TransactionalOutbox:
         )
         self._state = staged_state
         self._records.append(record)
+        self._event_ids.add(event.event_id)
         return result
 
     def pending_records(self) -> tuple[OutboxRecord, ...]:
@@ -149,9 +153,7 @@ class ReplaySafeConsumer:
         results: list[ProjectionResult] = []
         for event in events:
             if event.event_id in self._processed_event_ids:
-                results.append(
-                    ProjectionResult(event_id=event.event_id, replay=True, applied=False)
-                )
+                results.append(ProjectionResult(event_id=event.event_id, replay=True, applied=False))
                 continue
             apply_projection(self.projection, event)
             self._processed_event_ids.add(event.event_id)
