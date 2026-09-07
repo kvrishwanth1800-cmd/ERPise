@@ -153,7 +153,9 @@ class ReplaySafeConsumer:
         results: list[ProjectionResult] = []
         for event in events:
             if event.event_id in self._processed_event_ids:
-                results.append(ProjectionResult(event_id=event.event_id, replay=True, applied=False))
+                results.append(
+                    ProjectionResult(event_id=event.event_id, replay=True, applied=False)
+                )
                 continue
             apply_projection(self.projection, event)
             self._processed_event_ids.add(event.event_id)
