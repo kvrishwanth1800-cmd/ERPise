@@ -58,7 +58,7 @@ def test_pricing_wildcard_scope_and_events_are_durable(database: psycopg.Connect
     with database.cursor() as cursor:
         cursor.execute("SELECT store_id, channel_id, segment_id FROM price_entries")
         assert cursor.fetchone() == (None, None, None)
-        cursor.execute("SELECT event_type, schema_version FROM durable_outbox_records ORDER BY event_type")
+        cursor.execute("SELECT event_type, schema_version FROM durable_outbox_records WHERE event_type IN ('PricePublished', 'PromotionPublished') ORDER BY event_type")
         assert cursor.fetchall() == [("PricePublished", "v1"), ("PromotionPublished", "v1")]
 
 

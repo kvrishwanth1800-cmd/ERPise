@@ -102,7 +102,7 @@ def test_price_rejects_overlapping_same_scope_and_boundary_end_is_valid() -> Non
     publish_price(subject, price("new", "12.00", pricing_scope, NOW))
     assert quote(subject, pricing_scope).net_amount == Decimal("12.00")
     with pytest.raises(PricingValidationError, match="overlapping"):
-        publish_price(subject, price("overlap", "11.00", pricing_scope, NOW - timedelta(hours=1)))
+        publish_price(subject, price("new", "11.00", pricing_scope, NOW - timedelta(hours=1)))
 
 
 def test_tenant_isolation_coupon_idempotency_and_events() -> None:
