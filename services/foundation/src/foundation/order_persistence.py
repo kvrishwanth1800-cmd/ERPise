@@ -12,6 +12,7 @@ import psycopg
 
 from foundation.durable_outbox import DurableEvent, DurableOutboxStore
 from foundation.order import (
+    Order,
     OrderAllocation,
     OrderCancellation,
     OrderFulfillment,
@@ -21,7 +22,6 @@ from foundation.order import (
     OrderReturn,
     OrderSubstitution,
 )
-from foundation.order import Order as OrderFact
 
 
 class DurableOrderStore:
@@ -31,7 +31,7 @@ class DurableOrderStore:
         self._connection = connection
         self._outbox = DurableOutboxStore(connection)
 
-    def place_order(self, order: OrderFact, history: OrderHistoryEntry, trace_id: str) -> None:
+    def place_order(self, order: Order, history: OrderHistoryEntry, trace_id: str) -> None:
         def write(cursor: psycopg.Cursor[Any]) -> None:
             cursor.execute(
                 """
@@ -147,7 +147,11 @@ class DurableOrderStore:
             self._insert_history(cursor, history)
 
         self._commit(
-            cancellation.tenant_id, "OrderChanged", cancellation.order_id, trace_id, write
+            cancellation.tenant_id,
+            "OrderChanged",
+            cancellation.cancellation_id,
+            trace_id,
+            write,
         )
 
     def fulfill(
@@ -231,7 +235,7 @@ class DurableOrderStore:
 
         self._commit(refund.tenant_id, "OrderChanged", refund.refund_id, trace_id, write)
 
-    def order(self, tenant_id: str, order_id: str) -> OrderFact | None:
+    def order(self, tenant_id: str, order_id: str) -> Order | None:
         with self._connection.cursor() as cursor:
             cursor.execute(
                 "SELECT channel, customer_id, idempotency_key, lines, total_amount, currency, reservation_id, payment_transaction_id, status, placed_at FROM orders WHERE tenant_id = %s AND order_id = %s",
@@ -250,7 +254,7 @@ class DurableOrderStore:
                 )
                 for line in row[3]
             )
-            return OrderFact(
+            return Order(
                 order_id,
                 tenant_id,
                 str(row[0]),
