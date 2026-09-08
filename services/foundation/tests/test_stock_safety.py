@@ -19,8 +19,8 @@ def scope(tenant_id: str = "tenant-a") -> ScopeContext:
 
 def service() -> tuple[StockSafetyService, InventoryLedger, AuditRecorder]:
     access = AuthorizationService(SessionRevocationService())
-    for principal, action in (("counter", "stock_safety.count"), ("supervisor", "stock_safety.approve"), ("supervisor", "inventory.write"), ("operator", "stock_safety.write"), ("operator", "inventory.write"), ("seed", "inventory.write")):
-        access.grant(PermissionGrant(principal, "tenant-a", action))
+    for principal, tenant, action in (("counter", "tenant-a", "stock_safety.count"), ("counter", "tenant-b", "stock_safety.count"), ("supervisor", "tenant-a", "stock_safety.approve"), ("supervisor", "tenant-a", "inventory.write"), ("operator", "tenant-a", "stock_safety.write"), ("operator", "tenant-a", "inventory.write"), ("seed", "tenant-a", "inventory.write")):
+        access.grant(PermissionGrant(principal, tenant, action))
     audit = AuditRecorder()
     ledger = InventoryLedger(access, audit)
     ledger.post("seed", "session", scope(), InventoryMovement("seed-stock", "tea", "store-1", "physical", Decimal("10"), "opening stock", NOW), "seed")
