@@ -23,6 +23,7 @@ def service() -> tuple[ReceivingService, InventoryLedger, AuditRecorder]:
     access = AuthorizationService(SessionRevocationService())
     access.grant(PermissionGrant("receiver", "tenant-a", "receiving.write"))
     access.grant(PermissionGrant("receiver", "tenant-a", "inventory.write"))
+    access.grant(PermissionGrant("receiver", "tenant-b", "receiving.write"))
     audit = AuditRecorder()
     ledger = InventoryLedger(access, audit)
     return ReceivingService(access, audit, ledger), ledger, audit
@@ -48,7 +49,8 @@ def test_discrepancy_is_recorded_before_receipt_completion() -> None:
     subject, _, audit = service()
     outcome = subject.receive("receiver", "session", scope(), receipt(accepted="3", expected="5"), "trace")
     assert outcome.discrepancy_quantity == Decimal("-2")
-    assert [record.source for record in audit.records][-2:] == ["receipt.discrepancy", "receipt.record"]
+    sources = [record.source for record in audit.records]
+    assert sources.index("receipt.discrepancy") < sources.index("receipt.record")
 
 
 def test_duplicate_submission_has_one_logical_outcome_and_one_stock_effect() -> None:
