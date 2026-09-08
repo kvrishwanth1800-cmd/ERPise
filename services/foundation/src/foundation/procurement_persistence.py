@@ -5,6 +5,7 @@ import json
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 import psycopg
 
@@ -27,12 +28,12 @@ from foundation.procurement import (
 class DurableProcurementStore:
     """Persists procurement lifecycle facts durably, atomically with their outbox events."""
 
-    def __init__(self, connection: psycopg.Connection[object]) -> None:
+    def __init__(self, connection: psycopg.Connection[Any]) -> None:
         self._connection = connection
         self._outbox = DurableOutboxStore(connection)
 
     def submit_requisition(self, requisition: Requisition, trace_id: str) -> None:
-        def write(cursor: psycopg.Cursor[object]) -> bool | None:
+        def write(cursor: psycopg.Cursor[Any]) -> bool | None:
             cursor.execute(
                 """
                 INSERT INTO requisitions (
@@ -58,7 +59,7 @@ class DurableProcurementStore:
         self._commit(requisition.tenant_id, "RequisitionChanged", requisition.requisition_id, trace_id, write)
 
     def approve_requisition(self, tenant_id: str, requisition_id: str, trace_id: str) -> None:
-        def write(cursor: psycopg.Cursor[object]) -> bool | None:
+        def write(cursor: psycopg.Cursor[Any]) -> bool | None:
             cursor.execute(
                 """
                 UPDATE requisitions SET status = 'approved'
@@ -71,7 +72,7 @@ class DurableProcurementStore:
         self._commit(tenant_id, "RequisitionChanged", requisition_id, trace_id, write)
 
     def record_quote(self, quote: Quote, trace_id: str) -> None:
-        def write(cursor: psycopg.Cursor[object]) -> bool | None:
+        def write(cursor: psycopg.Cursor[Any]) -> bool | None:
             cursor.execute(
                 """
                 INSERT INTO quotes (
@@ -88,11 +89,12 @@ class DurableProcurementStore:
                     quote.submitted_at,
                 ),
             )
+            return None
 
         self._commit(quote.tenant_id, "QuoteRecorded", quote.quote_id, trace_id, write)
 
     def record_award(self, award: Award, trace_id: str) -> None:
-        def write(cursor: psycopg.Cursor[object]) -> bool | None:
+        def write(cursor: psycopg.Cursor[Any]) -> bool | None:
             cursor.execute(
                 """
                 INSERT INTO awards (
@@ -112,13 +114,14 @@ class DurableProcurementStore:
                     award.awarded_at,
                 ),
             )
+            return None
 
         self._commit(award.tenant_id, "PurchaseOrderChanged", award.award_id, trace_id, write)
 
     def issue_purchase_order(
         self, po: PurchaseOrder, history: PurchaseOrderHistoryEntry, trace_id: str
     ) -> None:
-        def write(cursor: psycopg.Cursor[object]) -> bool | None:
+        def write(cursor: psycopg.Cursor[Any]) -> bool | None:
             cursor.execute(
                 """
                 INSERT INTO purchase_orders (
@@ -162,7 +165,7 @@ class DurableProcurementStore:
     def acknowledge(
         self, acknowledgment: Acknowledgment, history: PurchaseOrderHistoryEntry, trace_id: str
     ) -> None:
-        def write(cursor: psycopg.Cursor[object]) -> bool | None:
+        def write(cursor: psycopg.Cursor[Any]) -> bool | None:
             cursor.execute(
                 """
                 INSERT INTO purchase_order_acknowledgments (
@@ -188,7 +191,7 @@ class DurableProcurementStore:
     def change_purchase_order(
         self, change: PurchaseOrderChange, history: PurchaseOrderHistoryEntry, trace_id: str
     ) -> None:
-        def write(cursor: psycopg.Cursor[object]) -> bool | None:
+        def write(cursor: psycopg.Cursor[Any]) -> bool | None:
             cursor.execute(
                 """
                 INSERT INTO purchase_order_changes (tenant_id, change_id, po_id, reason, changed_at)
@@ -208,7 +211,7 @@ class DurableProcurementStore:
         new_status: str,
         trace_id: str,
     ) -> None:
-        def write(cursor: psycopg.Cursor[object]) -> bool | None:
+        def write(cursor: psycopg.Cursor[Any]) -> bool | None:
             cursor.execute(
                 """
                 INSERT INTO purchase_order_asns (
@@ -232,7 +235,7 @@ class DurableProcurementStore:
         self._commit(asn.tenant_id, "AsnReceived", asn.asn_id, trace_id, write)
 
     def close(self, closure: PurchaseOrderClosure, history: PurchaseOrderHistoryEntry, trace_id: str) -> None:
-        def write(cursor: psycopg.Cursor[object]) -> bool | None:
+        def write(cursor: psycopg.Cursor[Any]) -> bool | None:
             cursor.execute(
                 """
                 INSERT INTO purchase_order_closures (tenant_id, closure_id, po_id, reason, closed_at)
@@ -249,7 +252,7 @@ class DurableProcurementStore:
     def cancel(
         self, cancellation: PurchaseOrderCancellation, history: PurchaseOrderHistoryEntry, trace_id: str
     ) -> None:
-        def write(cursor: psycopg.Cursor[object]) -> bool | None:
+        def write(cursor: psycopg.Cursor[Any]) -> bool | None:
             cursor.execute(
                 """
                 INSERT INTO purchase_order_cancellations (tenant_id, cancellation_id, po_id, reason, cancelled_at)
@@ -328,7 +331,7 @@ class DurableProcurementStore:
             )
             return tuple(row[0] for row in cursor.fetchall())
 
-    def _insert_history(self, cursor: psycopg.Cursor[object], history: PurchaseOrderHistoryEntry) -> None:
+    def _insert_history(self, cursor: psycopg.Cursor[Any], history: PurchaseOrderHistoryEntry) -> None:
         cursor.execute(
             """
             INSERT INTO purchase_order_history (
@@ -349,7 +352,7 @@ class DurableProcurementStore:
         )
 
     @staticmethod
-    def _set_status(cursor: psycopg.Cursor[object], tenant_id: str, po_id: str, status: str) -> None:
+    def _set_status(cursor: psycopg.Cursor[Any], tenant_id: str, po_id: str, status: str) -> None:
         cursor.execute(
             "UPDATE purchase_orders SET status = %s WHERE tenant_id = %s AND po_id = %s",
             (status, tenant_id, po_id),
@@ -361,7 +364,7 @@ class DurableProcurementStore:
         event_type: str,
         subject_id: str,
         trace_id: str,
-        write: Callable[[psycopg.Cursor[object]], bool | None],
+        write: Callable[[psycopg.Cursor[Any]], bool | None],
     ) -> None:
         event = DurableEvent(
             f"{event_type}-{tenant_id}-{subject_id}",
