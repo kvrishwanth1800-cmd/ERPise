@@ -14,8 +14,6 @@ from foundation.procurement import (
     AdvanceShipmentNotice,
     Award,
     PurchaseOrder,
-    PurchaseOrderCancellation,
-    PurchaseOrderChange,
     PurchaseOrderClosure,
     PurchaseOrderHistoryEntry,
     PurchaseOrderLine,
