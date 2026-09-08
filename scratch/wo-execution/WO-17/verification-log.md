@@ -15,16 +15,13 @@
 - Authorization and audit: customer commands use deny-by-default actions and append audit records.
 - Consent withdrawal: the latest purpose-bound consent fact controls access.
 - Ledger integrity: values are append-only and reversals must exactly offset an original tenant-local effect.
-- Idempotency and replay: identical in-memory effects return the original fact; PostgreSQL writes emit deterministic durable-outbox event identifiers.
+- Idempotency and replay: identical in-memory effects return the original fact. PostgreSQL writes emit deterministic durable-outbox event identifiers.
 - Migration: `0008_customer_consent_loyalty.up.sql` and `.down.sql` create and remove the customer, identity, consent, privacy, and stored-value schema in dependency order.
 
-## Validation authority
+## Workspace Quality correction and final result
 
-Commit `f7d6e152266b9371941e6128a59653b99d728693` completed successfully in these GitHub Actions workflows:
+Earlier evidence incorrectly stated that Workspace Quality passed for the original implementation. The gate on commit `6860db9c85ab1659a57a7304a13b168deb115607` failed in `Lint Python workspace` for `uv run ruff check services --output-format=github`.
 
-- Foundation validation: run 34201874124.
-- Edge sync validation: run 34201874125.
-- Pytest collection diagnostics: run 34201869451.
-- Integration execution diagnostics and workspace quality also completed successfully for this commit.
+The demonstrated root causes were an unused `datetime.UTC` import and over-100-character lines in the WO-17 customer implementation and its persistence and test files. The corrections were limited to Ruff-required formatting and import cleanup, followed by a MyPy-safe `fetchone()` null guard in `customer_persistence.py`.
 
-No validation failures occurred during WO-17 execution.
+Final validation passed in [Workspace Quality run 34211676033](https://github.com/kvrishwanth1800-cmd/ERPise/actions/runs/34211676033) for commit `36a1028c4ef08eb7a40c7b11815235ecffe98934`. This run completed TypeScript checks, Python lint, Python type checking, Python tests, Rust checks, and Terraform validation successfully.
