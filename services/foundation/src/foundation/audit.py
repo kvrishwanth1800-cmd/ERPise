@@ -103,6 +103,10 @@ class ApprovalWorkflowService:
     ) -> ApprovalRequest:
         if not approval_id or approval_id in self._requests:
             raise ApprovalStateError("Approval identifiers must be unique and non-empty.")
+        if not requester_id or not policy or not trace_id:
+            raise ApprovalStateError(
+                "Approval requests require requester, policy, and trace identifiers."
+            )
         if timeout_outcome not in self._timeout_outcomes:
             raise ApprovalStateError("Timeout outcome must be retry, escalate, or compensate.")
         request = ApprovalRequest(approval_id, requester_id, policy, timeout_outcome)
@@ -116,6 +120,8 @@ class ApprovalWorkflowService:
         approver_id: str,
         trace_id: str,
     ) -> ApprovalRequest:
+        if not approver_id or not trace_id:
+            raise ApprovalStateError("Approval requires approver and trace identifiers.")
         request = self._pending_request(approval_id)
         if approver_id == request.requester_id:
             raise SelfApprovalError("Requesters cannot approve their own requests.")
@@ -129,15 +135,12 @@ class ApprovalWorkflowService:
         )
         self._requests[approval_id] = resolved
         self._record_transition(resolved, approver_id, trace_id, "approved")
-        self.outbox.append(
-            ApprovalResolved(
-                approval_id=approval_id,
-                outcome="approved",
-            )
-        )
+        self.outbox.append(ApprovalResolved(approval_id=approval_id, outcome="approved"))
         return resolved
 
     def timeout(self, approval_id: str, trace_id: str) -> ApprovalRequest:
+        if not trace_id:
+            raise ApprovalStateError("Approval timeout requires trace context.")
         request = self._pending_request(approval_id)
         resolved = ApprovalRequest(
             request.approval_id,
