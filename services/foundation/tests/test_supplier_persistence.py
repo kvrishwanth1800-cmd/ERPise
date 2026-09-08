@@ -8,7 +8,14 @@ from pathlib import Path
 
 import psycopg
 import pytest
-from foundation.supplier import BankChangeRequest, BankDetails, Certification, ContractVersion, SupplierRecord
+
+from foundation.supplier import (
+    BankChangeRequest,
+    BankDetails,
+    Certification,
+    ContractVersion,
+    SupplierRecord,
+)
 from foundation.supplier_persistence import DurableSupplierStore
 
 MIGRATIONS = Path(__file__).parents[1] / "migrations"
@@ -43,12 +50,12 @@ def database() -> Iterator[psycopg.Connection[object]]:
     for name in UP:
         with connection.cursor() as cursor:
             cursor.execute((MIGRATIONS / name).read_text())
-        connection.commit()
+            connection.commit()
     yield connection
     for name in reversed(UP):
         with connection.cursor() as cursor:
             cursor.execute((MIGRATIONS / name.replace(".up.sql", ".down.sql")).read_text())
-        connection.commit()
+            connection.commit()
     connection.close()
 
 
@@ -156,7 +163,7 @@ def test_contract_versions_are_immutable_and_prior_terms_survive_activation(
         assert cursor.fetchone() == ("superseded",)
         with pytest.raises(psycopg.Error, match="append-only"):
             cursor.execute(
-                "UPDATE supplier_contract_versions SET terms = '{}'::jsonb WHERE version_id = 'version-1'"
+                "UPDATE supplier_contract_versions SET terms = '{}':jsonb WHERE version_id = 'version-1'"
             )
         database.rollback()
     with database.cursor() as cursor:
@@ -210,9 +217,14 @@ def test_approaching_expiries_are_advised_to_the_responsible_scope(
     ]
     with database.cursor() as cursor:
         cursor.execute(
-            "SELECT count(*) FROM durable_outbox_records WHERE tenant_id = 'tenant-a' AND event_type = 'SupplierExpiryApproaching'"
+            "SELECT event_type, count(*) FROM durable_outbox_records WHERE tenant_id = 'tenant-a' "
+            "GROUP BY event_type ORDER BY event_type"
         )
-        assert cursor.fetchone() == (2,)
+        assert cursor.fetchall() == [("ContractActivated", 1), ("SupplierChanged", 3)]
+        cursor.execute(
+            "SELECT count(*) FROM audit_records WHERE tenant_id = 'tenant-a' AND source = 'outbox.commit'"
+        )
+        assert cursor.fetchone() == (4,)
 
 
 def test_supplier_facts_publish_events_and_audit_evidence(
