@@ -53,7 +53,9 @@ def test_pos_facts_and_events_are_durable_and_tenant_scoped(
 ) -> None:
     store = DurablePosStore(database)
     store.open_shift(
-        RegisterShift("shift-1", "tenant-a", "store-1", "register-1", "clerk", Decimal("100.00"), NOW),
+        RegisterShift(
+            "shift-1", "tenant-a", "store-1", "register-1", "clerk", Decimal("100.00"), NOW
+        ),
         "shift-trace",
     )
     line = SaleLine("sku-1", Decimal("2"), Decimal("5.00"), Decimal("10.00"))
@@ -126,7 +128,8 @@ def test_pos_facts_and_events_are_durable_and_tenant_scoped(
             ("ShiftOpened",),
         ]
         cursor.execute(
-            "SELECT status FROM register_shifts WHERE tenant_id = 'tenant-a' AND shift_id = 'shift-1'"
+            "SELECT status FROM register_shifts WHERE tenant_id = 'tenant-a' AND shift_id = "
+            "'shift-1'"
         )
         assert cursor.fetchone() == ("closed",)
         cursor.execute("SELECT count(*) FROM pos_sales WHERE tenant_id = 'tenant-b'")
@@ -136,7 +139,9 @@ def test_pos_facts_and_events_are_durable_and_tenant_scoped(
 def test_pos_sales_are_append_only(database: psycopg.Connection[object]) -> None:
     store = DurablePosStore(database)
     store.open_shift(
-        RegisterShift("shift-1", "tenant-a", "store-1", "register-1", "clerk", Decimal("100.00"), NOW),
+        RegisterShift(
+            "shift-1", "tenant-a", "store-1", "register-1", "clerk", Decimal("100.00"), NOW
+        ),
         "shift-trace",
     )
     line = SaleLine("sku-1", Decimal("2"), Decimal("5.00"), Decimal("10.00"))

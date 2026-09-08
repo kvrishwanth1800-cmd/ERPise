@@ -213,7 +213,8 @@ class PosOperationsService:
         sales: Sequence[Sale],
         trace_id: str,
     ) -> tuple[Sale, ...]:
-        """Re-applies a queued offline batch; duplicate idempotency keys resolve to the same fact."""
+        """Re-applies a queued offline batch; duplicate idempotency keys resolve to the same
+        fact."""
         return tuple(
             self.record_sale(principal_id, session_id, scope, sale, trace_id) for sale in sales
         )
