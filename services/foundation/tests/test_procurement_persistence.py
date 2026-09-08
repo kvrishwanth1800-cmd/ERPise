@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import cast
 
 import psycopg
 import pytest
@@ -134,7 +135,7 @@ def test_procurement_lifecycle_facts_and_history_are_durable(
             "SELECT count(*) FROM durable_outbox_records WHERE tenant_id = 'tenant-a' "
             "AND event_type IN ('PurchaseOrderChanged', 'AsnReceived', 'RequisitionChanged', 'QuoteRecorded')"
         )
-        assert cursor.fetchone()[0] >= 7
+        assert cast(tuple[int], cursor.fetchone())[0] >= 7
 
 
 def test_purchase_orders_are_scoped_to_their_tenant(database: psycopg.Connection[object]) -> None:
