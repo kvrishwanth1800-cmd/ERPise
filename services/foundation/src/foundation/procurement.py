@@ -20,7 +20,7 @@ from decimal import Decimal
 from foundation.access import AuthorizationService
 from foundation.audit import ApprovalWorkflowService, AuditRecorder
 from foundation.organization import ScopeContext
-from foundation.supplier import SupplierGovernanceService
+from foundation.supplier import SupplierGovernanceService, SupplierScopeError
 
 REQUISITION_WRITE = "procurement.requisition.write"
 REQUISITION_APPROVE = "procurement.requisition.approve"
@@ -354,7 +354,10 @@ class ProcurementService:
         award = self.award(scope, po.award_id)
         if award.supplier_id != po.supplier_id:
             raise ProcurementValidationError("a purchase order supplier must match the awarded supplier")
-        supplier = self._suppliers.supplier(scope, po.supplier_id)
+        try:
+            supplier = self._suppliers.supplier(scope, po.supplier_id)
+        except SupplierScopeError as exc:
+            raise ProcurementValidationError("purchase orders require an active, approved supplier") from exc
         if not supplier.permits_dependent_operations:
             raise ProcurementValidationError("purchase orders require an active, approved supplier")
         effective_terms = self._suppliers.effective_terms(scope, po.contract_id, po.issued_at)
@@ -396,8 +399,13 @@ class ProcurementService:
         updated = replace(po, status="acknowledged")
         self._purchase_orders[(scope.tenant_id, po.po_id)] = updated
         self._append_history(
-            scope, po.po_id, "acknowledged", po.status, "acknowledged",
-            acknowledgment.supplier_reference, acknowledgment.acknowledged_at,
+            scope,
+            po.po_id,
+            "acknowledged",
+            po.status,
+            "acknowledged",
+            acknowledgment.supplier_reference,
+            acknowledgment.acknowledged_at,
         )
         self._record(principal_id, PO_WRITE, "procurement.po.acknowledge", trace_id, "acknowledged")
         self.outbox.append(ProcurementEvent("PurchaseOrderChanged", scope.tenant_id, po.po_id))
