@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 
 from foundation.access import AuthorizationService
@@ -74,7 +74,7 @@ class InventoryLedger:
             if movement.quantity_delta != -original.quantity_delta:
                 raise InventoryValidationError("reversal quantity must exactly offset the original movement")
         self._movements[key] = movement
-        self._audit.record(principal_id, scope.tenant_id, "inventory.write", "inventory.post", movement.reason, "v1", trace_id, "allowed")
+        self._audit.record(principal_id, "inventory.write", "inventory.post", movement.reason, "v1", trace_id, "allowed")
         self.outbox.append(InventoryEvent("InventoryMoved", scope.tenant_id, movement.movement_id))
         return movement
 
