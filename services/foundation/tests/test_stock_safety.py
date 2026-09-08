@@ -33,17 +33,18 @@ def count(count_id: str = "count-1", observed: str = "8", threshold: str = "1") 
 
 def test_blind_count_withholds_expected_quantity_until_submission() -> None:
     subject, _, _ = service()
-    started = subject.start_blind_count("counter", "session", scope(), count(), "trace")
-    assert not hasattr(started.command, "expected_quantity")
-    assert started.expected_quantity == Decimal("10")
+    started = subject.start_blind_count("counter", "session", scope(), count())
+    assert started.count_id == "count-1"
+    assert not hasattr(started, "expected_quantity")
     submitted = subject.submit_blind_count("counter", "session", scope(), "count-1", "trace")
+    assert submitted.expected_quantity == Decimal("10")
     assert submitted.approval_required is True
     assert submitted.corrective_movement_id is None
 
 
 def test_threshold_variance_requires_eligible_approval_before_correction() -> None:
     subject, ledger, audit = service()
-    subject.start_blind_count("counter", "session", scope(), count(), "trace")
+    subject.start_blind_count("counter", "session", scope(), count())
     subject.submit_blind_count("counter", "session", scope(), "count-1", "trace")
     assert ledger.positions(scope())[0].quantity == Decimal("10")
     approved = subject.approve_variance("supervisor", "session", scope(), "count-1", "trace")
@@ -81,6 +82,6 @@ def test_quarantine_and_disposal_retain_evidence_scope_and_corrective_effects() 
 
 def test_tenant_isolation_rejects_another_tenants_count() -> None:
     subject, _, _ = service()
-    subject.start_blind_count("counter", "session", scope(), count(), "trace")
+    subject.start_blind_count("counter", "session", scope(), count())
     with pytest.raises(StockSafetyValidationError, match="unknown"):
         subject.submit_blind_count("counter", "session", scope("tenant-b"), "count-1", "trace")
