@@ -127,7 +127,9 @@ class DurableCustomerConsentStore:
                 """,
                 (tenant_id, customer_id, value_type),
             )
-            return cursor.fetchone()[0]
+            row = cursor.fetchone()
+            assert row is not None
+            return row[0]
 
     def _commit(
         self,
