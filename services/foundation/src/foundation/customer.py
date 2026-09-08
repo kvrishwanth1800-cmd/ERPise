@@ -172,7 +172,8 @@ class CustomerConsentService:
             or consent.occurred_at.tzinfo is None
         ):
             raise CustomerValidationError(
-                "consent requires purpose, decision, version, evidence, scope, and timezone-aware time"
+                "consent requires purpose, decision, version, evidence, scope, "
+                "and timezone-aware time"
             )
         key = (scope.tenant_id, consent.consent_id)
         existing = self._consents.get(key)
@@ -261,7 +262,8 @@ class CustomerConsentService:
             or effect.occurred_at.tzinfo is None
         ):
             raise CustomerValidationError(
-                "value effects require identity, type, reason, non-zero amount, and timezone-aware time"
+                "value effects require identity, type, reason, non-zero amount, "
+                "and timezone-aware time"
             )
         key = (scope.tenant_id, effect.effect_id)
         existing = self._value_effects.get(key)
