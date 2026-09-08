@@ -39,20 +39,20 @@ class SessionRevoked:
 
 
 class SessionRevocationService:
-    """Tracks session and credential revocation state for authorization checks."""
+    """Tracks tenant-scoped session and credential revocation state."""
 
     def __init__(self) -> None:
-        self._revoked_session_ids: set[str] = set()
+        self._revoked_sessions: set[tuple[str, str]] = set()
         self.outbox: list[SessionRevoked] = []
 
     def revoke(self, session_id: str, tenant_id: str) -> None:
         if not session_id or not tenant_id:
             raise ValueError("Session and tenant identifiers must be non-empty.")
-        self._revoked_session_ids.add(session_id)
+        self._revoked_sessions.add((tenant_id, session_id))
         self.outbox.append(SessionRevoked(session_id=session_id, tenant_id=tenant_id))
 
-    def is_revoked(self, session_id: str) -> bool:
-        return session_id in self._revoked_session_ids
+    def is_revoked(self, session_id: str, tenant_id: str) -> bool:
+        return (tenant_id, session_id) in self._revoked_sessions
 
 
 class AuthorizationService:
@@ -91,9 +91,11 @@ class AuthorizationService:
         record_id: str | None = None,
     ) -> None:
         allowed = False
-        if not self._session_revocations.is_revoked(session_id):
+        if not self._session_revocations.is_revoked(session_id, scope.tenant_id):
             allowed = any(
-                self._grant_applies(grant, principal_id, scope, action, organization_id, record_id)
+                self._grant_applies(
+                    grant, principal_id, scope, action, organization_id, record_id
+                )
                 for grant in self._grants
             )
         self.outbox.append(
