@@ -8,7 +8,6 @@ from pathlib import Path
 
 import psycopg
 import pytest
-
 from foundation.supplier import (
     BankChangeRequest,
     BankDetails,
@@ -163,7 +162,7 @@ def test_contract_versions_are_immutable_and_prior_terms_survive_activation(
         assert cursor.fetchone() == ("superseded",)
         with pytest.raises(psycopg.Error, match="append-only"):
             cursor.execute(
-                "UPDATE supplier_contract_versions SET terms = '{}':jsonb WHERE version_id = 'version-1'"
+                "UPDATE supplier_contract_versions SET terms = '{}'::jsonb WHERE version_id = 'version-1'"
             )
         database.rollback()
     with database.cursor() as cursor:
