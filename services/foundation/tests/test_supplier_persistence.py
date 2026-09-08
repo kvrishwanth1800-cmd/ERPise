@@ -219,11 +219,15 @@ def test_approaching_expiries_are_advised_to_the_responsible_scope(
             "SELECT event_type, count(*) FROM durable_outbox_records WHERE tenant_id = 'tenant-a' "
             "GROUP BY event_type ORDER BY event_type"
         )
-        assert cursor.fetchall() == [("ContractActivated", 1), ("SupplierChanged", 3)]
+        assert cursor.fetchall() == [
+            ("ContractActivated", 1),
+            ("SupplierChanged", 4),
+            ("SupplierExpiryApproaching", 2),
+        ]
         cursor.execute(
             "SELECT count(*) FROM audit_records WHERE tenant_id = 'tenant-a' AND source = 'outbox.commit'"
         )
-        assert cursor.fetchone() == (4,)
+        assert cursor.fetchone() == (7,)
 
 
 def test_supplier_facts_publish_events_and_audit_evidence(

@@ -42,6 +42,7 @@ def service(tenant_id: str = "tenant-a") -> SupplierGovernanceService:
     authorization = AuthorizationService(SessionRevocationService())
     for action in (SUPPLIER_WRITE, CONTRACT_WRITE, BANK_CHANGE_REQUEST):
         authorization.grant(PermissionGrant("buyer", tenant_id, action))
+    authorization.grant(PermissionGrant("buyer", tenant_id, BANK_CHANGE_APPROVE))
     authorization.grant(PermissionGrant("controller", tenant_id, BANK_CHANGE_APPROVE))
     authorization.assign_duty("buyer", "requester")
     authorization.assign_duty("controller", "approver")
