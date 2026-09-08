@@ -29,6 +29,13 @@ class CountCommand:
 
 
 @dataclass(frozen=True)
+class BlindCountStarted:
+    count_id: str
+    product_id: str
+    location_id: str
+
+
+@dataclass(frozen=True)
 class CountOutcome:
     command: CountCommand
     expected_quantity: Decimal
@@ -77,22 +84,20 @@ class StockSafetyService:
         self._ineligible: set[tuple[str, str, str]] = set()
         self.outbox: list[StockSafetyEvent] = []
 
-    def start_blind_count(self, principal_id: str, session_id: str, scope: ScopeContext, command: CountCommand) -> CountOutcome:
+    def start_blind_count(self, principal_id: str, session_id: str, scope: ScopeContext, command: CountCommand) -> BlindCountStarted:
         self._authorization.authorize(principal_id, session_id, scope, "stock_safety.count")
         self._validate_count(command)
         key = (scope.tenant_id, command.count_id)
-        if existing := self._counts.get(key):
-            return existing
-        expected = self._physical_quantity(scope, command.product_id, command.location_id)
-        outcome = CountOutcome(command, expected, command.observed_quantity - expected, False)
-        self._counts[key] = outcome
-        self._audit.record(principal_id, "stock_safety.count", "count.started", command.reason, "v1", command.count_id, "recorded")
-        return outcome
+        if key not in self._counts:
+            expected = self._physical_quantity(scope, command.product_id, command.location_id)
+            self._counts[key] = CountOutcome(command, expected, command.observed_quantity - expected, False)
+            self._audit.record(principal_id, "stock_safety.count", "count.started", command.reason, "v1", command.count_id, "recorded")
+        return BlindCountStarted(command.count_id, command.product_id, command.location_id)
 
     def submit_blind_count(self, principal_id: str, session_id: str, scope: ScopeContext, count_id: str, trace_id: str) -> CountOutcome:
         self._authorization.authorize(principal_id, session_id, scope, "stock_safety.count")
         outcome = self._get_count(scope, count_id)
-        if principal_id != "" and outcome.approved_by is not None:
+        if outcome.corrective_movement_id is not None or outcome.approval_required:
             return outcome
         threshold_exceeded = abs(outcome.variance_quantity) > outcome.command.approval_threshold
         submitted = CountOutcome(outcome.command, outcome.expected_quantity, outcome.variance_quantity, threshold_exceeded)
@@ -109,8 +114,6 @@ class StockSafetyService:
             raise StockSafetyValidationError("count variance does not require approval")
         if outcome.approved_by is not None:
             return outcome
-        if principal_id == "":
-            raise StockSafetyValidationError("an eligible approver is required")
         approved = CountOutcome(outcome.command, outcome.expected_quantity, outcome.variance_quantity, True, principal_id)
         self._counts[(scope.tenant_id, count_id)] = approved
         self._audit.record(principal_id, "stock_safety.approve", "count.approved", outcome.command.reason, "v1", trace_id, "approved")
