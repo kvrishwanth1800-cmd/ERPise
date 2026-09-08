@@ -9,11 +9,13 @@ from foundation.access import AuthorizationService, PermissionGrant
 from foundation.audit import ApprovalWorkflowService, AuditRecorder, SelfApprovalError
 from foundation.organization import ScopeContext
 from foundation.procurement import (
+    AWARD_WRITE,
+    PO_WRITE,
+    REQUISITION_APPROVE,
+    REQUISITION_WRITE,
     Acknowledgment,
     AdvanceShipmentNotice,
     Award,
-    AWARD_WRITE,
-    PO_WRITE,
     ProcurementService,
     ProcurementStateError,
     ProcurementValidationError,
@@ -23,15 +25,12 @@ from foundation.procurement import (
     PurchaseOrderClosure,
     PurchaseOrderLine,
     Quote,
-    REQUISITION_APPROVE,
-    REQUISITION_WRITE,
     Requisition,
 )
 from foundation.supplier import (
-    BankDetails,
+    ContractVersion,
     SupplierCommand,
     SupplierGovernanceService,
-    ContractVersion,
 )
 
 NOW = datetime(2026, 9, 8, 12, tzinfo=UTC)
