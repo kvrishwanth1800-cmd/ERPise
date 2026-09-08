@@ -1,0 +1,62 @@
+name: Workspace quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feature/**
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+      - name: Install TypeScript workspace dependencies
+        run: env -u CI -u GITHUB_ACTIONS -u BUILD_NUMBER -u RUN_ID -u CONTINUOUS_INTEGRATION pnpm install --no-frozen-lockfile --config.frozen-lockfile=false
+      - name: Check TypeScript formatting
+        run: pnpm format
+      - name: Lint TypeScript workspace
+        run: pnpm lint
+      - name: Type-check TypeScript workspace
+        run: pnpm typecheck
+      - name: Test TypeScript workspace
+        run: pnpm test
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: 0.6.3
+      - name: Sync Python workspace
+        run: uv sync --all-groups
+      - name: Lint Python workspace
+        run: uv run ruff check services --output-format=github
+      - name: Type-check Python workspace
+        run: pnpm typecheck:python
+      - name: Test Python workspace
+        run: uv run pytest services
+      - uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          components: rustfmt, clippy
+      - name: Check Rust formatting
+        run: cargo fmt --check
+      - name: Lint Rust workspace
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test Rust workspace
+        run: cargo test --workspace
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+      - name: Check Terraform formatting
+        run: terraform -chdir=infrastructure/terraform fmt -check
+      - name: Initialize Terraform validation
+        run: terraform -chdir=infrastructure/terraform init -backend=false
+      - name: Validate Terraform configuration
+        run: terraform -chdir=infrastructure/terraform validate
