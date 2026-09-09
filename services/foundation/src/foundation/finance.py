@@ -1,9 +1,10 @@
+# ruff: noqa: E501
 """Controlled, append-only financial posting and reconciliation."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from foundation.access import AuthorizationService
