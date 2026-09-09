@@ -56,7 +56,14 @@ class DurableProcurementStore:
             )
             return cursor.rowcount > 0
 
-        self._commit(requisition.tenant_id, "RequisitionChanged", requisition.requisition_id, trace_id, write)
+        self._commit(
+            requisition.tenant_id,
+            "RequisitionChanged",
+            requisition.requisition_id,
+            trace_id,
+            write,
+            event_id_suffix="submitted",
+        )
 
     def approve_requisition(self, tenant_id: str, requisition_id: str, trace_id: str) -> None:
         def write(cursor: psycopg.Cursor[Any]) -> bool | None:
@@ -69,7 +76,14 @@ class DurableProcurementStore:
             )
             return cursor.rowcount > 0
 
-        self._commit(tenant_id, "RequisitionChanged", requisition_id, trace_id, write)
+        self._commit(
+            tenant_id,
+            "RequisitionChanged",
+            requisition_id,
+            trace_id,
+            write,
+            event_id_suffix="approved",
+        )
 
     def record_quote(self, quote: Quote, trace_id: str) -> None:
         def write(cursor: psycopg.Cursor[Any]) -> bool | None:
@@ -365,9 +379,15 @@ class DurableProcurementStore:
         subject_id: str,
         trace_id: str,
         write: Callable[[psycopg.Cursor[Any]], bool | None],
+        event_id_suffix: str | None = None,
     ) -> None:
+        # Distinct lifecycle transitions (e.g. requisition submit vs. approve) can share the
+        # same event_type and subject_id. Including trace_id keeps the event ID unique per
+        # occurrence while remaining stable for retries that reuse the same trace_id, so
+        # idempotent replays still collapse onto the same durable_outbox_records row.
+        suffix = f"-{event_id_suffix}" if event_id_suffix else ""
         event = DurableEvent(
-            f"{event_type}-{tenant_id}-{subject_id}",
+            f"{event_type}-{tenant_id}-{subject_id}-{trace_id}{suffix}",
             tenant_id,
             event_type,
             "v1",
