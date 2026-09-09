@@ -162,6 +162,7 @@ def test_duplicate_purchase_order_idempotency_keys_are_rejected_by_the_database(
     store.issue_purchase_order(purchase_order(), history("po-1", 1, "issued", "new", "issued"), "issue-trace")
 
     duplicate = purchase_order(po_id="po-9")
+    object.__setattr__(duplicate, "idempotency_key", "po-idem-po-1")
     store.issue_purchase_order(duplicate, history("po-9", 1, "issued", "new", "issued"), "issue-trace-dup")
 
     assert store.purchase_order("tenant-a", "po-9") is None
