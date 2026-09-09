@@ -61,22 +61,35 @@ class DurableAnalyticsStore:
         return applied
 
     def rebuild(
-        self, tenant_id: str, events: Iterable[OperationalMetricEvent], trace_id: str
+        self,
+        tenant_id: str,
+        events: Iterable[OperationalMetricEvent],
+        trace_id: str,
     ) -> int:
         with self._connection.transaction(), self._connection.cursor() as cursor:
-            cursor.execute("DELETE FROM analytics_projection_events WHERE tenant_id = %s", (tenant_id,))
             cursor.execute(
-                "INSERT INTO analytics_projection_rebuilds (tenant_id, trace_id, rebuilt_at) "
-                "VALUES (%s, %s, now())",
+                "DELETE FROM analytics_projection_events WHERE tenant_id = %s",
+                (tenant_id,),
+            )
+            cursor.execute(
+                "INSERT INTO analytics_projection_rebuilds "
+                "(tenant_id, trace_id, rebuilt_at) VALUES (%s, %s, now())",
                 (tenant_id, trace_id),
             )
-        return sum(
-            self.apply(event, trace_id)
-            for event in sorted(events, key=lambda item: (item.occurred_at, item.event_id))
-            if event.tenant_id == tenant_id
-        )
+            return sum(
+                self.apply(event, trace_id)
+                for event in sorted(
+                    events,
+                    key=lambda item: (item.occurred_at, item.event_id),
+                )
+                if event.tenant_id == tenant_id
+            )
 
-    def query(self, tenant_id: str, filters: ReportFilter) -> tuple[dict[str, object], ...]:
+    def query(
+        self,
+        tenant_id: str,
+        filters: ReportFilter,
+    ) -> tuple[dict[str, object], ...]:
         if filters.ends_on < filters.starts_on:
             raise ValueError("report end date must not precede start date")
         clauses = ["tenant_id = %s", "occurred_at >= %s", "occurred_at < %s"]
@@ -105,7 +118,11 @@ class DurableAnalyticsStore:
             return tuple(dict(row) for row in cursor.fetchall())
 
     def record_export(
-        self, tenant_id: str, actor_id: str, filters: ReportFilter, trace_id: str
+        self,
+        tenant_id: str,
+        actor_id: str,
+        filters: ReportFilter,
+        trace_id: str,
     ) -> None:
         event = DurableEvent(
             event_id=f"ExportCompleted-{tenant_id}-{trace_id}",
@@ -118,7 +135,13 @@ class DurableAnalyticsStore:
         )
         self._outbox.commit_business_event(
             event,
-            lambda cursor: self._insert_export(cursor, tenant_id, actor_id, filters, trace_id),
+            lambda cursor: self._insert_export(
+                cursor,
+                tenant_id,
+                actor_id,
+                filters,
+                trace_id,
+            ),
         )
 
     @staticmethod
@@ -130,8 +153,10 @@ class DurableAnalyticsStore:
         trace_id: str,
     ) -> bool:
         cursor.execute(
-            "INSERT INTO analytics_report_exports (tenant_id, trace_id, actor_id, filters) "
-            "VALUES (%s, %s, %s, %s::jsonb) ON CONFLICT (tenant_id, trace_id) DO NOTHING",
+            "INSERT INTO analytics_report_exports "
+            "(tenant_id, trace_id, actor_id, filters) "
+            "VALUES (%s, %s, %s, %s::jsonb) "
+            "ON CONFLICT (tenant_id, trace_id) DO NOTHING",
             (tenant_id, trace_id, actor_id, json.dumps(filters, default=str)),
         )
         return cursor.rowcount > 0
