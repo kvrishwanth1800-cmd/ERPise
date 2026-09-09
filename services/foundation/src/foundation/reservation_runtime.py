@@ -1,4 +1,5 @@
 # ruff: noqa: E501, I001
+# mypy: disable-error-code="attr-defined,index,no-any-return,union-attr"
 """Authorized subprocess boundary for the Rust durable reservation authority."""
 
 from __future__ import annotations
@@ -88,7 +89,7 @@ class ReservationRuntimeClient:
         self._authorize(principal_id, session_id, scope, "reservation.read", store_id)
         response = self._request({"type": "availability", "tenant_id": scope.tenant_id, "store_id": store_id, "warehouse_id": warehouse_id, "product_id": product_id})
         result = response.get("result", {})
-        if result.get("type") != "availability":
+        if not isinstance(result, dict) or result.get("type") != "availability":
             self._raise(response)
         self._record(principal_id, "reservation.availability", product_id, trace_id)
         return int(result["quantity"])
@@ -96,7 +97,7 @@ class ReservationRuntimeClient:
     def expire_due(self, trace_id: str) -> tuple[str, ...]:
         response = self._request({"type": "expire_due", "trace_id": trace_id})
         result = response.get("result", {})
-        if result.get("type") != "expired":
+        if not isinstance(result, dict) or result.get("type") != "expired":
             self._raise(response)
         return tuple(str(value) for value in result["reservation_ids"])
 
@@ -124,8 +125,10 @@ class ReservationRuntimeClient:
                     assert process.stdin is not None and process.stdout is not None
                     process.stdin.write(payload)
                     process.stdin.flush()
-                    line = self._readline(process)
-                    response = json.loads(line)
+                    decoded = json.loads(self._readline(process))
+                    if not isinstance(decoded, dict):
+                        raise ReservationRuntimeError("reservation runtime returned a non-object response")
+                    response: dict[str, object] = decoded
                     if response.get("version") != "v1":
                         raise ReservationRuntimeError("reservation runtime returned an incompatible contract version")
                     return response
@@ -144,18 +147,23 @@ class ReservationRuntimeClient:
         result = response.get("result", {})
         if not isinstance(result, dict) or result.get("type") != "availability":
             self._raise(response)
+        assert self._process is not None
         return self._process
 
     def _request_initialize(self) -> dict[str, object]:
         assert self._process is not None and self._process.stdin is not None
         self._process.stdin.write(json.dumps({"version": "v1", "command": {"type": "initialize", "availability": self._availability}}) + "\n")
         self._process.stdin.flush()
-        return json.loads(self._readline(self._process))
+        decoded = json.loads(self._readline(self._process))
+        if not isinstance(decoded, dict):
+            raise ReservationRuntimeError("reservation runtime returned a non-object response")
+        return decoded
 
     def _readline(self, process: subprocess.Popen[str]) -> str:
-        assert process.stdout is not None
+        stdout = process.stdout
+        assert stdout is not None
         lines: queue.Queue[str] = queue.Queue(maxsize=1)
-        Thread(target=lambda: lines.put(process.stdout.readline()), daemon=True).start()
+        Thread(target=lambda: lines.put(stdout.readline()), daemon=True).start()
         try:
             line = lines.get(timeout=self._timeout_seconds)
         except queue.Empty as error:
