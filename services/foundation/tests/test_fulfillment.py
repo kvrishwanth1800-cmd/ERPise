@@ -1,30 +1,41 @@
 import pytest
 
-from foundation.audit import AuditRecorder
-from foundation.fulfillment import FulfillmentService, FulfillmentStateError, RefundPort, ReservationPort
-from foundation.organization import ScopeContext, ScopeDeniedError
+import foundation.audit as audit_module
+import foundation.fulfillment as fulfillment_module
+import foundation.organization as organization_module
 
 
 @pytest.fixture
-def scope() -> ScopeContext:
-    return ScopeContext("tenant-a", is_tenant_administrator=True)
+def scope() -> organization_module.ScopeContext:
+    return organization_module.ScopeContext("tenant-a", is_tenant_administrator=True)
 
 
 @pytest.fixture
-def service() -> tuple[FulfillmentService, ReservationPort, RefundPort]:
-    reservations = ReservationPort()
-    refunds = RefundPort()
-    return FulfillmentService(AuditRecorder(), reservations, refunds), reservations, refunds
+def service() -> tuple[
+    fulfillment_module.FulfillmentService,
+    fulfillment_module.ReservationPort,
+    fulfillment_module.RefundPort,
+]:
+    reservations = fulfillment_module.ReservationPort()
+    refunds = fulfillment_module.RefundPort()
+    return fulfillment_module.FulfillmentService(audit_module.AuditRecorder(), reservations, refunds), reservations, refunds
 
 
-def configure(service: FulfillmentService, scope: ScopeContext) -> None:
+def configure(
+    service: fulfillment_module.FulfillmentService,
+    scope: organization_module.ScopeContext,
+) -> None:
     service.configure_slot(scope, "slot-a", 2)
     service.allow_address(scope, "1 Main Street")
 
 
 def test_delivery_lifecycle_records_assignment_dispatch_and_proof(
-    scope: ScopeContext,
-    service: tuple[FulfillmentService, ReservationPort, RefundPort],
+    scope: organization_module.ScopeContext,
+    service: tuple[
+        fulfillment_module.FulfillmentService,
+        fulfillment_module.ReservationPort,
+        fulfillment_module.RefundPort,
+    ],
 ) -> None:
     fulfillment, _, _ = service
     configure(fulfillment, scope)
@@ -47,8 +58,12 @@ def test_delivery_lifecycle_records_assignment_dispatch_and_proof(
 
 
 def test_promise_is_capacity_backed_idempotent_and_tenant_scoped(
-    scope: ScopeContext,
-    service: tuple[FulfillmentService, ReservationPort, RefundPort],
+    scope: organization_module.ScopeContext,
+    service: tuple[
+        fulfillment_module.FulfillmentService,
+        fulfillment_module.ReservationPort,
+        fulfillment_module.RefundPort,
+    ],
 ) -> None:
     fulfillment, _, _ = service
     configure(fulfillment, scope)
@@ -60,9 +75,9 @@ def test_promise_is_capacity_backed_idempotent_and_tenant_scoped(
         scope, "ignored", "order-a", "payment-a", "pickup", "slot-a",
         None, "key-a", "shopper-a", "trace-a",
     ) == first
-    with pytest.raises(ScopeDeniedError):
+    with pytest.raises(organization_module.ScopeDeniedError):
         fulfillment.collect(
-            ScopeContext("tenant-b", is_tenant_administrator=True),
+            organization_module.ScopeContext("tenant-b", is_tenant_administrator=True),
             first.fulfillment_id,
             "shopper-b",
             "trace-b",
@@ -70,12 +85,16 @@ def test_promise_is_capacity_backed_idempotent_and_tenant_scoped(
 
 
 def test_delivery_rejects_unserviceable_address_and_failed_delivery_releases_and_refunds(
-    scope: ScopeContext,
-    service: tuple[FulfillmentService, ReservationPort, RefundPort],
+    scope: organization_module.ScopeContext,
+    service: tuple[
+        fulfillment_module.FulfillmentService,
+        fulfillment_module.ReservationPort,
+        fulfillment_module.RefundPort,
+    ],
 ) -> None:
     fulfillment, reservations, refunds = service
     fulfillment.configure_slot(scope, "slot-a", 1)
-    with pytest.raises(FulfillmentStateError, match="outside the service area"):
+    with pytest.raises(fulfillment_module.FulfillmentStateError, match="outside the service area"):
         fulfillment.promise(
             scope, "bad", "order-a", "payment-a", "delivery", "slot-a",
             "unknown", "key-a", "shopper-a", "trace-a",
