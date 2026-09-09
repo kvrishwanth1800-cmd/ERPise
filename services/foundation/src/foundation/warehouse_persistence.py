@@ -1,4 +1,4 @@
-# ruff: noqa: E501
+# ruff: noqa: E501, I001
 """PostgreSQL persistence for warehouse tasks and transfers."""
 
 from __future__ import annotations

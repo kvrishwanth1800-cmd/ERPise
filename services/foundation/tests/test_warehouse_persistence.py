@@ -1,9 +1,8 @@
-# ruff: noqa: E501
+# ruff: noqa: E501, I001
 from __future__ import annotations
 
 import os
 from collections.abc import Iterator
-from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
