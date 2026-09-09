@@ -4,8 +4,8 @@ from foundation.audit import AuditRecorder
 from foundation.fulfillment import (
     FulfillmentService,
     FulfillmentStateError,
-    ReservationPort,
     RefundPort,
+    ReservationPort,
 )
 from foundation.organization import ScopeContext, ScopeDeniedError
 
