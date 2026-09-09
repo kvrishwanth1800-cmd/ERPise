@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  type CheckoutCommand,
-  type CheckoutOutcome,
-  StorefrontCheckout
-} from './checkout.js';
+import { type CheckoutCommand, type CheckoutOutcome, StorefrontCheckout } from './checkout.js';
 
 const command: CheckoutCommand = {
   shopperId: 'shopper-1',
@@ -23,7 +19,11 @@ describe('StorefrontCheckout', () => {
         price: 3.5,
         availableQuantity: 1
       })
-    ).toEqual({ heading: 'Coffee', priceText: '$3.50', availabilityText: '1 available' });
+    ).toEqual({
+      heading: 'Coffee',
+      priceText: '$3.50',
+      availabilityText: '1 available'
+    });
   });
 
   it('uses one shared order request for retry attempts after a payment failure', async () => {

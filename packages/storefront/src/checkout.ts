@@ -46,10 +46,7 @@ export class StorefrontCheckout {
     return {
       heading: product.name,
       priceText: `$${product.price.toFixed(2)}`,
-      availabilityText:
-        product.availableQuantity > 0
-          ? `${product.availableQuantity} available`
-          : 'Out of stock'
+      availabilityText: product.availableQuantity > 0 ? `${product.availableQuantity} available` : 'Out of stock'
     };
   }
 
