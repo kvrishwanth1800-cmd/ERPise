@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - feature/**
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -94,7 +95,7 @@ jobs:
           apply_exit=$?
           git diff --check
           diff_check_exit=$?
-          git diff -- . ':!scratch/wo-execution/**' | tee workspace-rustfmt.diff
+          git diff -- . ':(exclude)scratch/wo-execution/**' | tee workspace-rustfmt.diff
           git status --short | tee workspace-rustfmt.status
           cargo fmt --check
           final_check_exit=$?
@@ -112,7 +113,33 @@ jobs:
             workspace-rustfmt.status
           if-no-files-found: warn
       - name: Lint Rust workspace
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        id: clippy
+        shell: bash
+        run: |
+          set +e
+          cargo clippy --workspace --all-targets -- -D warnings > clippy-output.log 2>&1
+          clippy_exit=$?
+          echo "exit_code=$clippy_exit" >> "$GITHUB_OUTPUT"
+          echo "## Rust Clippy" >> "$GITHUB_STEP_SUMMARY"
+          echo "Exit code: $clippy_exit" >> "$GITHUB_STEP_SUMMARY"
+          first_error_line=$(grep -n -m1 -E '^error(\[|:)|^error:' clippy-output.log | cut -d: -f1)
+          if [ -n "$first_error_line" ]; then
+            start=$((first_error_line > 8 ? first_error_line - 8 : 1))
+            end=$((first_error_line + 24))
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            sed -n "${start},${end}p" clippy-output.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No compiler error marker found. Full output is attached.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$clippy_exit"
+      - name: Upload Rust Clippy diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-clippy-output
+          path: clippy-output.log
+          if-no-files-found: warn
       - name: Test Rust workspace
         run: cargo test --workspace
       - uses: hashicorp/setup-terraform@v3
