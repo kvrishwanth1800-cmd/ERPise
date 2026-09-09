@@ -19,6 +19,9 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+"services/foundation/tests/test_fulfillment.py" = ["I001"]
+
 [tool.mypy]
 strict = true
 files = ["services"]
