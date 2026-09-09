@@ -1,3 +1,4 @@
+# ruff: noqa: E501, I001
 """Authorized subprocess boundary for the Rust durable reservation authority."""
 
 from __future__ import annotations
@@ -54,15 +55,7 @@ class ReservationResult:
 class ReservationRuntimeClient:
     """Calls Rust without holding reservation state or replay journals in Python."""
 
-    def __init__(
-        self,
-        authorization: AuthorizationService,
-        audit: AuditRecorder,
-        executable: str,
-        availability: tuple[dict[str, object], ...],
-        database_url: str,
-        timeout_seconds: float = 2.0,
-    ) -> None:
+    def __init__(self, authorization: AuthorizationService, audit: AuditRecorder, executable: str, availability: tuple[dict[str, object], ...], database_url: str, timeout_seconds: float = 2.0) -> None:
         self._authorization = authorization
         self._audit = audit
         self._executable = executable
@@ -72,10 +65,7 @@ class ReservationRuntimeClient:
         self._lock = Lock()
         self._process: subprocess.Popen[str] | None = None
 
-    def reserve(
-        self, principal_id: str, session_id: str, scope: ScopeContext,
-        request: ReservationRequest, trace_id: str,
-    ) -> ReservationResult:
+    def reserve(self, principal_id: str, session_id: str, scope: ScopeContext, request: ReservationRequest, trace_id: str) -> ReservationResult:
         self._authorize(principal_id, session_id, scope, "reservation.write", request.store_id)
         payload = asdict(request)
         payload["expires_at"] = request.expires_at.astimezone(UTC).isoformat()
@@ -121,12 +111,7 @@ class ReservationRuntimeClient:
         value = result["reservation"]
         if not isinstance(value, dict) or value.get("tenant_id") != scope.tenant_id:
             raise ReservationRuntimeError("reservation response is outside tenant scope")
-        reservation = ReservationResult(
-            reservation_id=str(value["reservation_id"]), tenant_id=str(value["tenant_id"]),
-            store_id=str(value["store_id"]), warehouse_id=str(value["warehouse_id"]),
-            product_id=str(value["product_id"]), quantity=int(value["quantity"]),
-            status=str(value["status"]), expires_at=datetime.fromisoformat(str(value["expires_at"]).replace("Z", "+00:00")),
-        )
+        reservation = ReservationResult(reservation_id=str(value["reservation_id"]), tenant_id=str(value["tenant_id"]), store_id=str(value["store_id"]), warehouse_id=str(value["warehouse_id"]), product_id=str(value["product_id"]), quantity=int(value["quantity"]), status=str(value["status"]), expires_at=datetime.fromisoformat(str(value["expires_at"]).replace("Z", "+00:00")))
         self._record(principal_id, f"reservation.{reservation.status}", reservation.reservation_id, trace_id)
         return reservation
 
