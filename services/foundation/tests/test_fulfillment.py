@@ -1,72 +1,115 @@
-import importlib
-
+# ruff: noqa: I001
 import pytest
 
-
-audit_module = importlib.import_module("foundation.audit")
-fulfillment_module = importlib.import_module("foundation.fulfillment")
-organization_module = importlib.import_module("foundation.organization")
+from foundation.audit import AuditRecorder
+from foundation.fulfillment import (
+    FulfillmentService,
+    FulfillmentStateError,
+    ReservationPort,
+    RefundPort,
+)
+from foundation.organization import ScopeContext, ScopeDeniedError
 
 
 @pytest.fixture
-def scope() -> object:
-    return organization_module.ScopeContext("tenant-a", is_tenant_administrator=True)
+def scope() -> ScopeContext:
+    return ScopeContext("tenant-a", is_tenant_administrator=True)
 
 
 @pytest.fixture
-def service() -> tuple[object, object, object]:
-    reservations = fulfillment_module.ReservationPort()
-    refunds = fulfillment_module.RefundPort()
-    fulfillment = fulfillment_module.FulfillmentService(
-        audit_module.AuditRecorder(), reservations, refunds
-    )
+def service() -> tuple[FulfillmentService, ReservationPort, RefundPort]:
+    reservations = ReservationPort()
+    refunds = RefundPort()
+    fulfillment = FulfillmentService(AuditRecorder(), reservations, refunds)
     return fulfillment, reservations, refunds
 
 
-def configure(service: object, scope: object) -> None:
+def configure(service: FulfillmentService, scope: ScopeContext) -> None:
     service.configure_slot(scope, "slot-a", 2)
     service.allow_address(scope, "1 Main Street")
 
 
 def test_delivery_lifecycle_records_assignment_dispatch_and_proof(
-    scope: object, service: tuple[object, object, object]
+    scope: ScopeContext,
+    service: tuple[FulfillmentService, ReservationPort, RefundPort],
 ) -> None:
     fulfillment, _, _ = service
     configure(fulfillment, scope)
     promised = fulfillment.promise(
-        scope, "fulfillment-a", "order-a", "payment-a", "delivery", "slot-a",
-        "1 Main Street", "key-a", "shopper-a", "trace-a",
+        scope,
+        "fulfillment-a",
+        "order-a",
+        "payment-a",
+        "delivery",
+        "slot-a",
+        "1 Main Street",
+        "key-a",
+        "shopper-a",
+        "trace-a",
     )
     assigned = fulfillment.assign(
-        scope, promised.fulfillment_id, "driver-a", "dispatcher-a", "trace-b"
+        scope,
+        promised.fulfillment_id,
+        "driver-a",
+        "dispatcher-a",
+        "trace-b",
     )
-    dispatched = fulfillment.dispatch(scope, assigned.fulfillment_id, "driver-a", "trace-c")
+    dispatched = fulfillment.dispatch(
+        scope,
+        assigned.fulfillment_id,
+        "driver-a",
+        "trace-c",
+    )
     completed = fulfillment.complete(
-        scope, dispatched.fulfillment_id, "signature-a", "driver-a", "trace-d"
+        scope,
+        dispatched.fulfillment_id,
+        "signature-a",
+        "driver-a",
+        "trace-d",
     )
     assert completed.status == "completed"
     assert completed.proof == "signature-a"
     assert [event.status for event in fulfillment.outbox] == [
-        "promised", "assigned", "dispatched", "completed"
+        "promised",
+        "assigned",
+        "dispatched",
+        "completed",
     ]
 
 
 def test_promise_is_capacity_backed_idempotent_and_tenant_scoped(
-    scope: object, service: tuple[object, object, object]
+    scope: ScopeContext,
+    service: tuple[FulfillmentService, ReservationPort, RefundPort],
 ) -> None:
     fulfillment, _, _ = service
     configure(fulfillment, scope)
     first = fulfillment.promise(
-        scope, "fulfillment-a", "order-a", "payment-a", "pickup", "slot-a",
-        None, "key-a", "shopper-a", "trace-a",
+        scope,
+        "fulfillment-a",
+        "order-a",
+        "payment-a",
+        "pickup",
+        "slot-a",
+        None,
+        "key-a",
+        "shopper-a",
+        "trace-a",
     )
     assert fulfillment.promise(
-        scope, "ignored", "order-a", "payment-a", "pickup", "slot-a",
-        None, "key-a", "shopper-a", "trace-a",
+        scope,
+        "ignored",
+        "order-a",
+        "payment-a",
+        "pickup",
+        "slot-a",
+        None,
+        "key-a",
+        "shopper-a",
+        "trace-a",
     ) == first
-    with pytest.raises(organization_module.ScopeDeniedError):
+    with pytest.raises(ScopeDeniedError):
         fulfillment.collect(
-            organization_module.ScopeContext("tenant-b", is_tenant_administrator=True),
+            ScopeContext("tenant-b", is_tenant_administrator=True),
             first.fulfillment_id,
             "shopper-b",
             "trace-b",
@@ -74,22 +117,43 @@ def test_promise_is_capacity_backed_idempotent_and_tenant_scoped(
 
 
 def test_delivery_rejects_unserviceable_address_and_failed_delivery_releases_and_refunds(
-    scope: object, service: tuple[object, object, object]
+    scope: ScopeContext,
+    service: tuple[FulfillmentService, ReservationPort, RefundPort],
 ) -> None:
     fulfillment, reservations, refunds = service
     fulfillment.configure_slot(scope, "slot-a", 1)
-    with pytest.raises(fulfillment_module.FulfillmentStateError, match="outside the service area"):
+    with pytest.raises(FulfillmentStateError, match="outside the service area"):
         fulfillment.promise(
-            scope, "bad", "order-a", "payment-a", "delivery", "slot-a",
-            "unknown", "key-a", "shopper-a", "trace-a",
+            scope,
+            "bad",
+            "order-a",
+            "payment-a",
+            "delivery",
+            "slot-a",
+            "unknown",
+            "key-a",
+            "shopper-a",
+            "trace-a",
         )
     fulfillment.allow_address(scope, "1 Main Street")
     promised = fulfillment.promise(
-        scope, "fulfillment-a", "order-a", "payment-a", "delivery", "slot-a",
-        "1 Main Street", "key-b", "shopper-a", "trace-a",
+        scope,
+        "fulfillment-a",
+        "order-a",
+        "payment-a",
+        "delivery",
+        "slot-a",
+        "1 Main Street",
+        "key-b",
+        "shopper-a",
+        "trace-a",
     )
     failed = fulfillment.fail(
-        scope, promised.fulfillment_id, "cancel_refund", "driver-a", "trace-b"
+        scope,
+        promised.fulfillment_id,
+        "cancel_refund",
+        "driver-a",
+        "trace-b",
     )
     assert failed.follow_up == "cancel_refund"
     assert reservations.released_order_ids == ["order-a"]
