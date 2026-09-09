@@ -20,7 +20,9 @@ from foundation.organization import ScopeContext
 
 
 def event(
-    event_id: str, tenant_id: str = "tenant-a", **values: object
+    event_id: str,
+    tenant_id: str = "tenant-a",
+    **values: object,
 ) -> OperationalMetricEvent:
     payload: dict[str, object] = {
         "event_id": event_id,
@@ -47,8 +49,12 @@ def service() -> tuple[ReportingService, ScopeContext, AuditRecorder]:
     projector.apply(event("one"))
     revocations = SessionRevocationService()
     authorization = AuthorizationService(revocations)
-    authorization.grant(PermissionGrant("reader", "tenant-a", "analytics.report.read"))
-    authorization.grant(PermissionGrant("reader", "tenant-a", "analytics.report.export"))
+    authorization.grant(
+        PermissionGrant("reader", "tenant-a", "analytics.report.read")
+    )
+    authorization.grant(
+        PermissionGrant("reader", "tenant-a", "analytics.report.export")
+    )
     scope = ScopeContext("tenant-a", frozenset({"entity-a"}))
     audit = AuditRecorder()
     return ReportingService(projector, authorization, audit), scope, audit
@@ -78,8 +84,14 @@ def test_report_requires_tenant_authorization_and_audits_export() -> None:
 def test_rebuild_is_deterministic_and_dates_are_utc_bounded() -> None:
     projector = AnalyticsProjector()
     first = event("first")
-    second = event("second", occurred_at=datetime(2026, 9, 10, 0, 0, tzinfo=UTC))
+    second = event(
+        "second",
+        occurred_at=datetime(2026, 9, 10, 0, 0, tzinfo=UTC),
+    )
     assert projector.rebuild("tenant-a", (second, first, first)) == 2
-    report = projector.report("tenant-a", ReportFilter(date(2026, 9, 9), date(2026, 9, 9)))
+    report = projector.report(
+        "tenant-a",
+        ReportFilter(date(2026, 9, 9), date(2026, 9, 9)),
+    )
     assert report[0].event_count == 1
     assert report[0].value == Decimal("12.35")
