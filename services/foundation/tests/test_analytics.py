@@ -22,19 +22,20 @@ from foundation.organization import ScopeContext
 def event(
     event_id: str, tenant_id: str = "tenant-a", **values: object
 ) -> OperationalMetricEvent:
-    return OperationalMetricEvent(
-        event_id,
-        tenant_id,
-        datetime(2026, 9, 9, 23, 30, tzinfo=UTC),
-        "net_sales",
-        Decimal("12.345"),
-        "USD",
-        store_id="store-a",
-        warehouse_id="warehouse-a",
-        channel="web",
-        entity_id="entity-a",
-        **values,
-    )
+    payload: dict[str, object] = {
+        "event_id": event_id,
+        "tenant_id": tenant_id,
+        "occurred_at": datetime(2026, 9, 9, 23, 30, tzinfo=UTC),
+        "metric": "net_sales",
+        "amount": Decimal("12.345"),
+        "currency": "USD",
+        "store_id": "store-a",
+        "warehouse_id": "warehouse-a",
+        "channel": "web",
+        "entity_id": "entity-a",
+    }
+    payload.update(values)
+    return OperationalMetricEvent(**payload)
 
 
 def filters() -> ReportFilter:
