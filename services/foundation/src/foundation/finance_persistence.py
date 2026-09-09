@@ -12,7 +12,14 @@ from typing import Any
 import psycopg
 
 from foundation.durable_outbox import DurableEvent, DurableOutboxStore
-from foundation.finance import Account, AccountMapping, FinancialPeriod, JournalEntry, JournalLine, ReconciliationException, SupplierInvoice
+from foundation.finance import (
+    Account,
+    AccountMapping,
+    FinancialPeriod,
+    JournalEntry,
+    ReconciliationException,
+    SupplierInvoice,
+)
 
 
 class DurableFinancialStore:
