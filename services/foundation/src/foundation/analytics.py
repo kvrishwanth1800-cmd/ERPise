@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from foundation.access import AuthorizationService
 from foundation.audit import AuditRecorder
@@ -88,7 +88,11 @@ class AnalyticsProjector:
                 applied += 1
         return applied
 
-    def report(self, tenant_id: str, filters: ReportFilter) -> tuple[MetricProjection, ...]:
+    def report(
+        self,
+        tenant_id: str,
+        filters: ReportFilter,
+    ) -> tuple[MetricProjection, ...]:
         if filters.ends_on < filters.starts_on:
             raise ValueError("report end date must not precede start date")
         grouped: dict[tuple[str, str], list[OperationalMetricEvent]] = {}
@@ -98,9 +102,9 @@ class AnalyticsProjector:
             grouped.setdefault((event.metric, event.currency), []).append(event)
         result: list[MetricProjection] = []
         for (metric, currency), events in sorted(grouped.items()):
-            value = sum((event.amount for event in events), Decimal()).quantize(
-                MONEY_SCALE, rounding=ROUND_HALF_UP
-            )
+            value = sum(
+                (event.amount for event in events), Decimal()
+            ).quantize(MONEY_SCALE, rounding=ROUND_HALF_UP)
             result.append(
                 MetricProjection(
                     metric=metric,
@@ -149,7 +153,11 @@ class ReportingService:
         trace_id: str,
     ) -> ReportResult:
         self._authorization.authorize(
-            principal_id, session_id, scope, "analytics.report.read", filters.entity_id
+            principal_id,
+            session_id,
+            scope,
+            "analytics.report.read",
+            filters.entity_id,
         )
         report = ReportResult(
             tenant_id=scope.tenant_id,
@@ -177,7 +185,11 @@ class ReportingService:
         trace_id: str,
     ) -> str:
         self._authorization.authorize(
-            principal_id, session_id, scope, "analytics.report.export", filters.entity_id
+            principal_id,
+            session_id,
+            scope,
+            "analytics.report.export",
+            filters.entity_id,
         )
         report = self._projector.report(scope.tenant_id, filters)
         rows = ["metric,currency,value,event_count,freshness,definition,reconciled"]
