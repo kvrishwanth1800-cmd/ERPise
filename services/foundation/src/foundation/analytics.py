@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Iterable
 
 from foundation.access import AuthorizationService
 from foundation.audit import AuditRecorder
@@ -158,8 +158,13 @@ class ReportingService:
             generated_at=datetime.now(UTC),
         )
         self._audit.record(
-            principal_id, "authorized", "analytics.report", "report generated",
-            "tenant-scoped-reporting", trace_id, "completed"
+            principal_id,
+            "authorized",
+            "analytics.report",
+            "report generated",
+            "tenant-scoped-reporting",
+            trace_id,
+            "completed",
         )
         return report
 
@@ -178,15 +183,25 @@ class ReportingService:
         rows = ["metric,currency,value,event_count,freshness,definition,reconciled"]
         for projection in report:
             rows.append(
-                ",".join((
-                    projection.metric, projection.currency, str(projection.value),
-                    str(projection.event_count),
-                    projection.freshness.isoformat() if projection.freshness else "",
-                    projection.definition, str(projection.reconciled).lower(),
-                ))
+                ",".join(
+                    (
+                        projection.metric,
+                        projection.currency,
+                        str(projection.value),
+                        str(projection.event_count),
+                        projection.freshness.isoformat() if projection.freshness else "",
+                        projection.definition,
+                        str(projection.reconciled).lower(),
+                    )
+                )
             )
         self._audit.record(
-            principal_id, "authorized", "analytics.export", "scoped export completed",
-            "tenant-scoped-reporting", trace_id, "completed"
+            principal_id,
+            "authorized",
+            "analytics.export",
+            "scoped export completed",
+            "tenant-scoped-reporting",
+            trace_id,
+            "completed",
         )
         return "\n".join(rows) + "\n"

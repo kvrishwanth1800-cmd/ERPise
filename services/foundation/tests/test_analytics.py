@@ -3,17 +3,37 @@ from decimal import Decimal
 
 import pytest
 
-from foundation.access import AuthorizationDeniedError, AuthorizationService, PermissionGrant, SessionRevocationService
-from foundation.analytics import AnalyticsProjector, OperationalMetricEvent, ReportFilter, ReportingService
+from foundation.access import (
+    AuthorizationDeniedError,
+    AuthorizationService,
+    PermissionGrant,
+    SessionRevocationService,
+)
+from foundation.analytics import (
+    AnalyticsProjector,
+    OperationalMetricEvent,
+    ReportFilter,
+    ReportingService,
+)
 from foundation.audit import AuditRecorder
 from foundation.organization import ScopeContext
 
 
-def event(event_id: str, tenant_id: str = "tenant-a", **values: object) -> OperationalMetricEvent:
+def event(
+    event_id: str, tenant_id: str = "tenant-a", **values: object
+) -> OperationalMetricEvent:
     return OperationalMetricEvent(
-        event_id, tenant_id, datetime(2026, 9, 9, 23, 30, tzinfo=UTC), "net_sales",
-        Decimal("12.345"), "USD", store_id="store-a", warehouse_id="warehouse-a",
-        channel="web", entity_id="entity-a", **values,
+        event_id,
+        tenant_id,
+        datetime(2026, 9, 9, 23, 30, tzinfo=UTC),
+        "net_sales",
+        Decimal("12.345"),
+        "USD",
+        store_id="store-a",
+        warehouse_id="warehouse-a",
+        channel="web",
+        entity_id="entity-a",
+        **values,
     )
 
 

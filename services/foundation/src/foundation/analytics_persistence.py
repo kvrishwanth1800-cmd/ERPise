@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from datetime import UTC, datetime
-from decimal import Decimal
-from typing import Any, Iterable
+from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
@@ -37,13 +37,21 @@ class DurableAnalyticsStore:
             nonlocal applied
             cursor.execute(
                 "INSERT INTO analytics_projection_events "
-                "(tenant_id, source_event_id, metric, amount, currency, occurred_at, store_id, warehouse_id, channel, entity_id) "
+                "(tenant_id, source_event_id, metric, amount, currency, occurred_at, "
+                "store_id, warehouse_id, channel, entity_id) "
                 "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
                 "ON CONFLICT (tenant_id, source_event_id) DO NOTHING",
                 (
-                    event.tenant_id, event.event_id, event.metric, event.amount,
-                    event.currency, event.occurred_at, event.store_id, event.warehouse_id,
-                    event.channel, event.entity_id,
+                    event.tenant_id,
+                    event.event_id,
+                    event.metric,
+                    event.amount,
+                    event.currency,
+                    event.occurred_at,
+                    event.store_id,
+                    event.warehouse_id,
+                    event.channel,
+                    event.entity_id,
                 ),
             )
             applied = cursor.rowcount > 0
@@ -71,17 +79,17 @@ class DurableAnalyticsStore:
     def query(self, tenant_id: str, filters: ReportFilter) -> tuple[dict[str, object], ...]:
         if filters.ends_on < filters.starts_on:
             raise ValueError("report end date must not precede start date")
-        clauses = [
-            "tenant_id = %s", "occurred_at >= %s", "occurred_at < %s",
-        ]
+        clauses = ["tenant_id = %s", "occurred_at >= %s", "occurred_at < %s"]
         values: list[object] = [
             tenant_id,
             datetime.combine(filters.starts_on, datetime.min.time(), UTC),
             datetime.combine(filters.ends_on, datetime.max.time(), UTC),
         ]
         for column, value in (
-            ("store_id", filters.store_id), ("warehouse_id", filters.warehouse_id),
-            ("channel", filters.channel), ("entity_id", filters.entity_id),
+            ("store_id", filters.store_id),
+            ("warehouse_id", filters.warehouse_id),
+            ("channel", filters.channel),
+            ("entity_id", filters.entity_id),
         ):
             if value is not None:
                 clauses.append(f"{column} = %s")
@@ -100,9 +108,13 @@ class DurableAnalyticsStore:
         self, tenant_id: str, actor_id: str, filters: ReportFilter, trace_id: str
     ) -> None:
         event = DurableEvent(
-            event_id=f"ExportCompleted-{tenant_id}-{trace_id}", tenant_id=tenant_id,
-            event_type="ExportCompleted", schema_version="v1", trace_id=trace_id,
-            payload={"filters": json.dumps(filters, default=str)}, occurred_at=datetime.now(UTC),
+            event_id=f"ExportCompleted-{tenant_id}-{trace_id}",
+            tenant_id=tenant_id,
+            event_type="ExportCompleted",
+            schema_version="v1",
+            trace_id=trace_id,
+            payload={"filters": json.dumps(filters, default=str)},
+            occurred_at=datetime.now(UTC),
         )
         self._outbox.commit_business_event(
             event,
@@ -111,8 +123,11 @@ class DurableAnalyticsStore:
 
     @staticmethod
     def _insert_export(
-        cursor: psycopg.Cursor[Any], tenant_id: str, actor_id: str,
-        filters: ReportFilter, trace_id: str,
+        cursor: psycopg.Cursor[Any],
+        tenant_id: str,
+        actor_id: str,
+        filters: ReportFilter,
+        trace_id: str,
     ) -> bool:
         cursor.execute(
             "INSERT INTO analytics_report_exports (tenant_id, trace_id, actor_id, filters) "
