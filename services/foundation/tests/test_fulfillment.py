@@ -1,41 +1,35 @@
+import importlib
+
 import pytest
 
-import foundation.audit as audit_module
-import foundation.fulfillment as fulfillment_module
-import foundation.organization as organization_module
+
+audit_module = importlib.import_module("foundation.audit")
+fulfillment_module = importlib.import_module("foundation.fulfillment")
+organization_module = importlib.import_module("foundation.organization")
 
 
 @pytest.fixture
-def scope() -> organization_module.ScopeContext:
+def scope() -> object:
     return organization_module.ScopeContext("tenant-a", is_tenant_administrator=True)
 
 
 @pytest.fixture
-def service() -> tuple[
-    fulfillment_module.FulfillmentService,
-    fulfillment_module.ReservationPort,
-    fulfillment_module.RefundPort,
-]:
+def service() -> tuple[object, object, object]:
     reservations = fulfillment_module.ReservationPort()
     refunds = fulfillment_module.RefundPort()
-    return fulfillment_module.FulfillmentService(audit_module.AuditRecorder(), reservations, refunds), reservations, refunds
+    fulfillment = fulfillment_module.FulfillmentService(
+        audit_module.AuditRecorder(), reservations, refunds
+    )
+    return fulfillment, reservations, refunds
 
 
-def configure(
-    service: fulfillment_module.FulfillmentService,
-    scope: organization_module.ScopeContext,
-) -> None:
+def configure(service: object, scope: object) -> None:
     service.configure_slot(scope, "slot-a", 2)
     service.allow_address(scope, "1 Main Street")
 
 
 def test_delivery_lifecycle_records_assignment_dispatch_and_proof(
-    scope: organization_module.ScopeContext,
-    service: tuple[
-        fulfillment_module.FulfillmentService,
-        fulfillment_module.ReservationPort,
-        fulfillment_module.RefundPort,
-    ],
+    scope: object, service: tuple[object, object, object]
 ) -> None:
     fulfillment, _, _ = service
     configure(fulfillment, scope)
@@ -58,12 +52,7 @@ def test_delivery_lifecycle_records_assignment_dispatch_and_proof(
 
 
 def test_promise_is_capacity_backed_idempotent_and_tenant_scoped(
-    scope: organization_module.ScopeContext,
-    service: tuple[
-        fulfillment_module.FulfillmentService,
-        fulfillment_module.ReservationPort,
-        fulfillment_module.RefundPort,
-    ],
+    scope: object, service: tuple[object, object, object]
 ) -> None:
     fulfillment, _, _ = service
     configure(fulfillment, scope)
@@ -85,12 +74,7 @@ def test_promise_is_capacity_backed_idempotent_and_tenant_scoped(
 
 
 def test_delivery_rejects_unserviceable_address_and_failed_delivery_releases_and_refunds(
-    scope: organization_module.ScopeContext,
-    service: tuple[
-        fulfillment_module.FulfillmentService,
-        fulfillment_module.ReservationPort,
-        fulfillment_module.RefundPort,
-    ],
+    scope: object, service: tuple[object, object, object]
 ) -> None:
     fulfillment, reservations, refunds = service
     fulfillment.configure_slot(scope, "slot-a", 1)
