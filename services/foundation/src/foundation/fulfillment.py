@@ -135,11 +135,7 @@ class FulfillmentService:
         return promise
 
     def mark_ready(
-        self,
-        scope: ScopeContext,
-        fulfillment_id: str,
-        actor_id: str,
-        trace_id: str,
+        self, scope: ScopeContext, fulfillment_id: str, actor_id: str, trace_id: str
     ) -> FulfillmentPromise:
         promise = self._get(scope, fulfillment_id)
         if promise.method != "pickup" or promise.status != "promised":
@@ -147,11 +143,7 @@ class FulfillmentService:
         return self._transition(promise, "ready", actor_id, trace_id)
 
     def collect(
-        self,
-        scope: ScopeContext,
-        fulfillment_id: str,
-        actor_id: str,
-        trace_id: str,
+        self, scope: ScopeContext, fulfillment_id: str, actor_id: str, trace_id: str
     ) -> FulfillmentPromise:
         promise = self._get(scope, fulfillment_id)
         if promise.method != "pickup" or promise.status != "ready":
@@ -172,11 +164,7 @@ class FulfillmentService:
         return self._transition(promise, "assigned", actor_id, trace_id, driver_id=driver_id)
 
     def dispatch(
-        self,
-        scope: ScopeContext,
-        fulfillment_id: str,
-        actor_id: str,
-        trace_id: str,
+        self, scope: ScopeContext, fulfillment_id: str, actor_id: str, trace_id: str
     ) -> FulfillmentPromise:
         promise = self._get(scope, fulfillment_id)
         if promise.status != "assigned":
@@ -208,7 +196,9 @@ class FulfillmentService:
         active_statuses = {"promised", "assigned", "dispatched"}
         supported_outcomes = {"retry", "cancel_refund"}
         if promise.status not in active_statuses or outcome not in supported_outcomes:
-            raise FulfillmentStateError("Failure requires an active fulfillment and supported follow-up.")
+            raise FulfillmentStateError(
+                "Failure requires an active fulfillment and supported follow-up."
+            )
         if outcome == "cancel_refund":
             self._reservations.release(promise.order_id)
             self._refunds.refund(promise.payment_id)
@@ -236,7 +226,9 @@ class FulfillmentService:
             )
         missing_context = not slot_id or not idempotency_key or not trace_id
         if method not in self._methods or missing_context:
-            raise FulfillmentStateError("Promise requires method, slot, idempotency key, and trace context.")
+            raise FulfillmentStateError(
+                "Promise requires method, slot, idempotency key, and trace context."
+            )
 
     def _get(self, scope: ScopeContext, fulfillment_id: str) -> FulfillmentPromise:
         promise = self._fulfillments.get(fulfillment_id)
@@ -253,17 +245,17 @@ class FulfillmentService:
         **changes: str,
     ) -> FulfillmentPromise:
         updated = FulfillmentPromise(
-            promise.fulfillment_id,
-            promise.tenant_id,
-            promise.order_id,
-            promise.payment_id,
-            promise.method,
-            promise.slot_id,
-            promise.address,
-            status,
-            changes.get("driver_id", promise.driver_id),
-            changes.get("proof", promise.proof),
-            changes.get("follow_up", promise.follow_up),
+            fulfillment_id=promise.fulfillment_id,
+            tenant_id=promise.tenant_id,
+            order_id=promise.order_id,
+            payment_id=promise.payment_id,
+            method=promise.method,
+            slot_id=promise.slot_id,
+            address=promise.address,
+            status=status,
+            driver_id=changes.get("driver_id", promise.driver_id),
+            proof=changes.get("proof", promise.proof),
+            follow_up=changes.get("follow_up", promise.follow_up),
         )
         self._fulfillments[promise.fulfillment_id] = updated
         self._record(updated, actor_id, trace_id, status)
