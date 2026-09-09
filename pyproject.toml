@@ -30,8 +30,6 @@ select = ["E", "F", "I", "UP"]
 "services/foundation/tests/test_redpanda_outbox.py" = ["E501"]
 "services/foundation/tests/test_payment.py" = ["E501"]
 "services/foundation/tests/test_payment_persistence.py" = ["E501"]
-"services/foundation/src/foundation/finance.py" = ["E501", "F401"]
-"services/foundation/tests/test_finance.py" = ["E501", "I001"]
 
 [tool.mypy]
 strict = true
