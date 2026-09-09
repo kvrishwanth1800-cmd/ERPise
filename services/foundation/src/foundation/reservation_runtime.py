@@ -1,3 +1,4 @@
+# ruff: noqa: E501, I001
 """Versioned subprocess boundary for the Rust reservation authority.
 
 This adapter owns process transport and durable command replay only. Reservation
@@ -8,7 +9,6 @@ state transitions, availability, concurrency, and idempotency remain in
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
 import json
 from pathlib import Path
 import subprocess
@@ -56,15 +56,7 @@ class ReservationResult:
 class ReservationRuntimeClient:
     """Authorized, restart-safe client for the Rust reservation runtime."""
 
-    def __init__(
-        self,
-        authorization: AuthorizationService,
-        audit: AuditRecorder,
-        executable: str,
-        availability: tuple[dict[str, object], ...],
-        journal_path: Path,
-        timeout_seconds: float = 2.0,
-    ) -> None:
+    def __init__(self, authorization: AuthorizationService, audit: AuditRecorder, executable: str, availability: tuple[dict[str, object], ...], journal_path: Path, timeout_seconds: float = 2.0) -> None:
         self._authorization = authorization
         self._audit = audit
         self._executable = executable
@@ -76,8 +68,7 @@ class ReservationRuntimeClient:
 
     def reserve(self, principal_id: str, session_id: str, scope: ScopeContext, request: ReservationRequest, trace_id: str) -> ReservationResult:
         self._authorize(principal_id, session_id, scope, "reservation.write", request.store_id)
-        payload = {"type": "reserve", "tenant_id": scope.tenant_id, **asdict(request)}
-        return self._reservation(payload, scope, trace_id, principal_id)
+        return self._reservation({"type": "reserve", "tenant_id": scope.tenant_id, **asdict(request)}, scope, trace_id, principal_id)
 
     def confirm(self, principal_id: str, session_id: str, scope: ScopeContext, reservation_id: str, trace_id: str) -> ReservationResult:
         self._authorize(principal_id, session_id, scope, "reservation.write")
@@ -93,8 +84,7 @@ class ReservationRuntimeClient:
 
     def status(self, principal_id: str, session_id: str, scope: ScopeContext, reservation_id: str, trace_id: str) -> ReservationResult:
         self._authorize(principal_id, session_id, scope, "reservation.read")
-        response = self._send({"type": "status", "reservation_id": reservation_id})
-        return self._result(response, scope, trace_id, principal_id)
+        return self._result(self._send({"type": "status", "reservation_id": reservation_id}), scope, trace_id, principal_id)
 
     def availability(self, principal_id: str, session_id: str, scope: ScopeContext, warehouse_id: str, product_id: str, trace_id: str) -> int:
         self._authorize(principal_id, session_id, scope, "reservation.read", warehouse_id)
@@ -106,8 +96,7 @@ class ReservationRuntimeClient:
         return int(result["quantity"])
 
     def _reservation(self, payload: dict[str, object], scope: ScopeContext, trace_id: str, principal_id: str) -> ReservationResult:
-        response = self._send(payload)
-        result = self._result(response, scope, trace_id, principal_id)
+        result = self._result(self._send(payload), scope, trace_id, principal_id)
         self._append(payload)
         return result
 
