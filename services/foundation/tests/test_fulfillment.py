@@ -1,12 +1,7 @@
 import pytest
 
 from foundation.audit import AuditRecorder
-from foundation.fulfillment import (
-    FulfillmentService,
-    FulfillmentStateError,
-    RefundPort,
-    ReservationPort,
-)
+from foundation.fulfillment import FulfillmentService, FulfillmentStateError, RefundPort, ReservationPort
 from foundation.organization import ScopeContext, ScopeDeniedError
 
 
