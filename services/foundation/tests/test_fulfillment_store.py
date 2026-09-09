@@ -37,7 +37,15 @@ def test_transaction_commits_fulfillment_transition_and_outbox_together() -> Non
     store = PostgresFulfillmentStore(connection)
     with store.transaction() as cursor:
         store.write_transition_and_outbox(
-            cursor, "fulfillment-a", "tenant-a", None, "promised", "actor-a", "trace-a", "t-a", "e-a"
+            cursor,
+            "fulfillment-a",
+            "tenant-a",
+            None,
+            "promised",
+            "actor-a",
+            "trace-a",
+            "t-a",
+            "e-a",
         )
     assert connection.commits == 1
     assert len(connection.cursor_value.executed) == 2
@@ -58,9 +66,22 @@ def test_restart_recovery_reads_active_tenant_fulfillments() -> None:
     connection = Connection()
     connection.cursor_value.rows = [
         (
-            "fulfillment-a", "tenant-a", "store-a", "warehouse-a", "order-a", "customer-a",
-            "payment-a", "reservation-a", "delivery", "slot-a", "1 Main Street", "dispatched",
-            "driver-a", None, None, None,
+            "fulfillment-a",
+            "tenant-a",
+            "store-a",
+            "warehouse-a",
+            "order-a",
+            "customer-a",
+            "payment-a",
+            "reservation-a",
+            "delivery",
+            "slot-a",
+            "1 Main Street",
+            "dispatched",
+            "driver-a",
+            None,
+            None,
+            None,
         )
     ]
     store = PostgresFulfillmentStore(connection)

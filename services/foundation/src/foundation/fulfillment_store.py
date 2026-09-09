@@ -90,25 +90,39 @@ class PostgresFulfillmentStore:
     ) -> None:
         cursor.execute(
             "INSERT INTO fulfillment_transitions "
-            "(transition_id, fulfillment_id, tenant_id, from_status, to_status, actor_id, trace_id) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (transition_id, fulfillment_id, tenant_id, from_status, to_status, actor_id, trace_id),
+            "(transition_id, fulfillment_id, tenant_id, from_status, to_status, "
+            "actor_id, trace_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (
+                transition_id,
+                fulfillment_id,
+                tenant_id,
+                from_status,
+                to_status,
+                actor_id,
+                trace_id,
+            ),
         )
         payload = json.dumps({"fulfillment_id": fulfillment_id, "status": to_status})
         cursor.execute(
             "INSERT INTO fulfillment_outbox "
             "(event_id, fulfillment_id, tenant_id, event_type, trace_id, payload) "
             "VALUES (%s, %s, %s, %s, %s, %s::jsonb)",
-            (event_id, fulfillment_id, tenant_id, "fulfillment.changed.v1", trace_id, payload),
+            (
+                event_id,
+                fulfillment_id,
+                tenant_id,
+                "fulfillment.changed.v1",
+                trace_id,
+                payload,
+            ),
         )
 
     def active_for_tenant(self, cursor: DatabaseCursor, tenant_id: str) -> list[StoredFulfillment]:
         cursor.execute(
             "SELECT fulfillment_id, tenant_id, store_id, warehouse_id, order_id, customer_id, "
             "payment_id, reservation_id, method, slot_id, address, status, driver_id, "
-            "pickup_confirmation, delivery_proof, follow_up "
-            "FROM fulfillment_promises WHERE tenant_id = %s "
-            "AND status NOT IN ('completed', 'cancelled', 'collected')",
+            "pickup_confirmation, delivery_proof, follow_up FROM fulfillment_promises "
+            "WHERE tenant_id = %s AND status NOT IN ('completed', 'cancelled', 'collected')",
             (tenant_id,),
         )
         return [StoredFulfillment(*row) for row in cursor.fetchall()]
