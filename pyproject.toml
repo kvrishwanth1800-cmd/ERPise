@@ -21,6 +21,8 @@ select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "services/foundation/tests/test_fulfillment.py" = ["I001"]
+"services/foundation/src/foundation/communications.py" = ["E501"]
+"services/foundation/tests/test_communications.py" = ["E501", "I001"]
 
 [tool.mypy]
 strict = true
