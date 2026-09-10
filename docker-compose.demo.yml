@@ -24,7 +24,9 @@ services:
       retries: 30
       start_period: 15s
   backend:
-    build: ./services/demo/backend
+    build:
+      context: .
+      dockerfile: services/demo/backend/Dockerfile
     environment:
       DATABASE_URL: postgresql://erpise_demo:${POSTGRES_PASSWORD:-demo-only-password}@postgres:5432/erpise_demo
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
