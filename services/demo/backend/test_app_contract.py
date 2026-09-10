@@ -1,7 +1,4 @@
-"""Static contract guards for the demo adapter's required security boundaries."""
-
 from pathlib import Path
-
 
 SOURCE = Path("services/demo/backend/app.py").read_text()
 
