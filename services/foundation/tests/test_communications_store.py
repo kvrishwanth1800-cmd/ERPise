@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import pytest
 
@@ -104,7 +105,8 @@ def test_recovery_is_tenant_scoped() -> None:
 
 
 def test_reversible_migration_contains_policy_and_down_sections() -> None:
-    migration = open("services/foundation/migrations/0002_communications.sql").read()
+    migration_path = Path(__file__).parents[1] / "migrations" / "0002_communications.sql"
+    migration = migration_path.read_text()
     assert "communication_preferences" in migration
     assert "communication_webhook_receipts" in migration
     assert "-- DOWN" in migration
