@@ -64,6 +64,6 @@ def test_tenant_isolation_restart_recovery_and_migration() -> None:
     service.create_case(admin, "case-1", "conversation-1", "customer-1", None, "medium", 2, "trace")
     assert len(service.recover_open_cases(admin)) == 1
     with pytest.raises(ScopeDeniedError):
-        service.recover_open_cases(ScopeContext("tenant-b", is_tenant_administrator=True))[0]
+        service.service_status(ScopeContext("tenant-b", is_tenant_administrator=True), "case-1", 1)
     migration = (Path(__file__).parents[1] / "migrations" / "0003_engagement.sql").read_text()
     assert "engagement_campaigns" in migration and "-- DOWN" in migration
