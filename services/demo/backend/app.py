@@ -1,4 +1,5 @@
 """Demo-mode HTTP adapter with authenticated, tenant-scoped durable workflows."""
+
 from __future__ import annotations
 
 import json
@@ -22,6 +23,7 @@ KAFKA_BOOTSTRAP_SERVERS = os.environ["KAFKA_BOOTSTRAP_SERVERS"]
 DEMO_MODE = os.environ.get("DEMO_MODE") == "true"
 DEMO_EMAIL = os.environ.get("DEMO_USER_EMAIL", "")
 DEMO_PASSWORD = os.environ.get("DEMO_USER_PASSWORD", "")
+
 TENANT_ID = "demo-tenant"
 USER_ID = "demo-admin"
 ROLE = "administrator"
@@ -34,36 +36,64 @@ def migrate_and_seed() -> None:
         with connection.cursor() as cursor:
             for migration in sorted(Path("/app/migrations").glob("*.sql")):
                 cursor.execute(migration.read_text())
+
             cursor.execute(
                 """INSERT INTO demo_products
                 (tenant_id, product_id, sku, name, price_cents, available)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (tenant_id, product_id) DO NOTHING""",
-                (TENANT_ID, "coffee", "DEMO-COFFEE", "Demo Coffee", 499, 100),
+                (
+                    TENANT_ID,
+                    "coffee",
+                    "DEMO-COFFEE",
+                    "Demo Coffee",
+                    499,
+                    100,
+                ),
             )
+
             cursor.execute(
-                """INSERT INTO demo_customers (tenant_id, customer_id, email, consented)
+                """INSERT INTO demo_customers
+                (tenant_id, customer_id, email, consented)
                 VALUES (%s, %s, %s, TRUE)
                 ON CONFLICT (tenant_id, customer_id) DO NOTHING""",
-                (TENANT_ID, "customer", "customer@erpise.local"),
+                (
+                    TENANT_ID,
+                    "customer",
+                    "customer@erpise.local",
+                ),
             )
 
 
 def encode_event(event: dict[str, Any]) -> bytes:
-    return json.dumps(event, separators=(",", ":"), sort_keys=True).encode()
+    """Encode an event as deterministic JSON bytes."""
+    return json.dumps(
+        event,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
 
 
 def publish_pending() -> None:
     """Publish committed outbox rows. Failed publication leaves a row pending."""
     try:
-        producer = KafkaProducer(bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS)
+        producer = KafkaProducer(
+            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+        )
+
         with psycopg.connect(DATABASE_URL) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "SELECT event_id, tenant_id, event_type, payload FROM demo_outbox "
-                    "WHERE published_at IS NULL ORDER BY created_at FOR UPDATE SKIP LOCKED"
+                    "SELECT event_id, tenant_id, event_type, payload "
+                    "FROM demo_outbox "
+                    "WHERE published_at IS NULL "
+                    "ORDER BY created_at "
+                    "FOR UPDATE SKIP LOCKED"
                 )
-                for event_id, tenant_id, event_type, payload in cursor.fetchall():
+
+                rows = cursor.fetchall() or []
+
+                for event_id, tenant_id, event_type, payload in rows:
                     event = {
                         "version": "v1",
                         "event_id": event_id,
@@ -71,27 +101,42 @@ def publish_pending() -> None:
                         "event_type": event_type,
                         "payload": payload,
                     }
-                    producer.send(TOPIC, encode_event(event), key=event_id.encode()).get(
-                        timeout=5
-                    )
+
+                    producer.send(
+                        TOPIC,
+                        encode_event(event),
+                        key=event_id.encode(),
+                    ).get(timeout=5)
+
                     cursor.execute(
-                        "UPDATE demo_outbox SET published_at = now() WHERE event_id = %s",
+                        """UPDATE demo_outbox
+                        SET published_at = now()
+                        WHERE event_id = %s""",
                         (event_id,),
                     )
+
         producer.flush()
         producer.close()
+
     except Exception as error:
         print(
-            json.dumps({"event": "outbox.publish.failed", "error": str(error)}),
+            json.dumps(
+                {
+                    "event": "outbox.publish.failed",
+                    "error": str(error),
+                }
+            ),
             flush=True,
         )
 
 
 def apply_projection(event: dict[str, Any]) -> None:
-    """Apply an idempotent order projection from a published Program A event."""
+    """Apply an idempotent order projection from a Program A event."""
     if event["event_type"] != "order.created.v1":
         return
+
     payload = event["payload"]
+
     with psycopg.connect(DATABASE_URL) as connection:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -109,7 +154,7 @@ def apply_projection(event: dict[str, Any]) -> None:
 
 
 def consume_events() -> None:
-    """Continuously maintain projections with consumer-safe event de-duplication."""
+    """Maintain projections with consumer-safe event de-duplication."""
     while True:
         try:
             consumer = KafkaConsumer(
@@ -119,31 +164,49 @@ def consume_events() -> None:
                 auto_offset_reset="earliest",
                 enable_auto_commit=True,
             )
+
             for message in consumer:
-                apply_projection(json.loads(message.value.decode()))
+                decoded_event = json.loads(message.value.decode())
+                apply_projection(decoded_event)
+
         except Exception as error:
             print(
-                json.dumps({"event": "projection.consumer.failed", "error": str(error)}),
+                json.dumps(
+                    {
+                        "event": "projection.consumer.failed",
+                        "error": str(error),
+                    }
+                ),
                 flush=True,
             )
             time.sleep(2)
 
 
-def session_from_request(handler: BaseHTTPRequestHandler) -> dict[str, str] | None:
+def session_from_request(
+    handler: BaseHTTPRequestHandler,
+) -> dict[str, str] | None:
+    """Return the active tenant-scoped session associated with a request."""
     cookies = SimpleCookie(handler.headers.get("Cookie"))
     value = cookies.get("erpise_session")
+
     if value is None:
         return None
+
     with psycopg.connect(DATABASE_URL) as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                """SELECT tenant_id, user_id, role FROM demo_sessions
-                WHERE session_id = %s AND revoked_at IS NULL AND expires_at > now()""",
+                """SELECT tenant_id, user_id, role
+                FROM demo_sessions
+                WHERE session_id = %s
+                AND revoked_at IS NULL
+                AND expires_at > now()""",
                 (value.value,),
             )
             row = cursor.fetchone()
+
     if row is None:
         return None
+
     return {
         "session_id": value.value,
         "tenant_id": row[0],
@@ -153,13 +216,18 @@ def session_from_request(handler: BaseHTTPRequestHandler) -> dict[str, str] | No
 
 
 class Handler(BaseHTTPRequestHandler):
+    """HTTP handler for the ERPise demonstration runtime."""
+
     def do_GET(self) -> None:
+        """Handle authenticated read requests."""
         if self.path.startswith("/health/"):
             self.respond({"status": "ok"})
             return
+
         session = self.require_session()
         if session is None:
             return
+
         if self.path == "/api/session":
             self.respond(
                 {
@@ -169,51 +237,84 @@ class Handler(BaseHTTPRequestHandler):
                 }
             )
             return
+
         if self.path == "/api/products":
             self.products(session)
             return
+
         if self.path == "/api/reports/sales":
             self.sales_report(session)
             return
+
         if self.path == "/api/orders":
             self.orders(session)
             return
-        self.respond({"error": "not_found"}, HTTPStatus.NOT_FOUND)
+
+        self.respond(
+            {"error": "not_found"},
+            HTTPStatus.NOT_FOUND,
+        )
 
     def do_POST(self) -> None:
+        """Handle authenticated command requests."""
         if self.path == "/api/auth/login":
             self.login()
             return
+
         if self.path == "/api/auth/logout":
             self.logout()
             return
+
         session = self.require_session()
         if session is None:
             return
+
         if self.path == "/api/consent":
             self.consent(session)
             return
+
         if self.path == "/api/orders":
             self.checkout(session)
             return
+
         if self.path == "/api/cases":
             self.case(session)
             return
-        self.respond({"error": "not_found"}, HTTPStatus.NOT_FOUND)
+
+        self.respond(
+            {"error": "not_found"},
+            HTTPStatus.NOT_FOUND,
+        )
 
     def login(self) -> None:
+        """Create a database-backed demonstration session."""
         payload = self.payload()
+
         if not DEMO_MODE:
-            self.respond({"error": "demo_login_disabled"}, HTTPStatus.FORBIDDEN)
+            self.respond(
+                {"error": "demo_login_disabled"},
+                HTTPStatus.FORBIDDEN,
+            )
             return
-        valid = secrets.compare_digest(str(payload.get("email", "")), DEMO_EMAIL)
-        valid = valid and secrets.compare_digest(
-            str(payload.get("password", "")), DEMO_PASSWORD
+
+        valid = secrets.compare_digest(
+            str(payload.get("email", "")),
+            DEMO_EMAIL,
         )
+        valid = valid and secrets.compare_digest(
+            str(payload.get("password", "")),
+            DEMO_PASSWORD,
+        )
+
         if not valid:
-            self.respond({"error": "invalid_credentials"}, HTTPStatus.UNAUTHORIZED)
+            self.respond(
+                {"error": "invalid_credentials"},
+                HTTPStatus.UNAUTHORIZED,
+            )
             return
+
         session_id = secrets.token_urlsafe(32)
+
         with psycopg.connect(DATABASE_URL) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -228,95 +329,195 @@ class Handler(BaseHTTPRequestHandler):
                         datetime.now(UTC) + timedelta(hours=8),
                     ),
                 )
+
         self.respond(
-            {"tenant": TENANT_ID, "user": USER_ID, "role": ROLE},
+            {
+                "tenant": TENANT_ID,
+                "user": USER_ID,
+                "role": ROLE,
+            },
             headers={
                 "Set-Cookie": (
-                    f"erpise_session={session_id}; HttpOnly; SameSite=Strict; Path=/"
+                    f"erpise_session={session_id}; "
+                    "HttpOnly; SameSite=Strict; Path=/"
                 )
             },
         )
 
     def logout(self) -> None:
+        """Revoke the current database-backed session."""
         session = session_from_request(self)
+
         if session is not None:
             with psycopg.connect(DATABASE_URL) as connection:
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        "UPDATE demo_sessions SET revoked_at = now() WHERE session_id = %s",
+                        """UPDATE demo_sessions
+                        SET revoked_at = now()
+                        WHERE session_id = %s""",
                         (session["session_id"],),
                     )
-        self.respond({}, headers={"Set-Cookie": "erpise_session=; Max-Age=0; Path=/"})
+
+        self.respond(
+            {},
+            headers={
+                "Set-Cookie": (
+                    "erpise_session=; Max-Age=0; "
+                    "HttpOnly; SameSite=Strict; Path=/"
+                )
+            },
+        )
 
     def products(self, session: dict[str, str]) -> None:
+        """Return products belonging to the active tenant."""
         with psycopg.connect(DATABASE_URL) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    """SELECT product_id, sku, name, price_cents, available FROM demo_products
-                    WHERE tenant_id = %s ORDER BY sku""",
+                    """SELECT
+                        product_id,
+                        sku,
+                        name,
+                        price_cents,
+                        available
+                    FROM demo_products
+                    WHERE tenant_id = %s
+                    ORDER BY sku""",
                     (session["tenant_id"],),
                 )
-                products = [
-                    {
-                        "id": row[0],
-                        "sku": row[1],
-                        "name": row[2],
-                        "price_cents": row[3],
-                        "available": row[4],
-                    }
-                    for row in cursor.fetchall()
-                ]
+                rows = cursor.fetchall() or []
+
+        products = [
+            {
+                "id": row[0],
+                "sku": row[1],
+                "name": row[2],
+                "price_cents": row[3],
+                "available": row[4],
+            }
+            for row in rows
+        ]
+
         self.respond({"products": products})
 
     def consent(self, session: dict[str, str]) -> None:
+        """Record customer consent in the active tenant."""
         payload = self.payload()
-        customer_id = str(payload.get("customer_id", "customer"))
+        customer_id = str(
+            payload.get(
+                "customer_id",
+                "customer",
+            )
+        )
+
         with psycopg.connect(DATABASE_URL) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "UPDATE demo_customers SET consented = TRUE WHERE tenant_id = %s "
-                    "AND customer_id = %s",
-                    (session["tenant_id"], customer_id),
+                    """UPDATE demo_customers
+                    SET consented = TRUE
+                    WHERE tenant_id = %s
+                    AND customer_id = %s""",
+                    (
+                        session["tenant_id"],
+                        customer_id,
+                    ),
                 )
-        self.respond({"customer_id": customer_id, "consented": True})
+
+        self.respond(
+            {
+                "customer_id": customer_id,
+                "consented": True,
+            }
+        )
 
     def checkout(self, session: dict[str, str]) -> None:
+        """Create an idempotent order and its durable outbox event."""
         payload = self.payload()
+
         product_id = str(payload.get("product_id", ""))
         quantity = int(payload.get("quantity", 0))
-        customer_id = str(payload.get("customer_id", "customer"))
-        fulfillment_method = str(payload.get("fulfillment_method", "pickup"))
-        idempotency_key = self.headers.get("Idempotency-Key", "")
+        customer_id = str(
+            payload.get(
+                "customer_id",
+                "customer",
+            )
+        )
+        fulfillment_method = str(
+            payload.get(
+                "fulfillment_method",
+                "pickup",
+            )
+        )
+        idempotency_key = self.headers.get(
+            "Idempotency-Key",
+            "",
+        )
+
         if not product_id or quantity < 1 or not idempotency_key:
-            self.respond({"error": "invalid_checkout"}, HTTPStatus.BAD_REQUEST)
+            self.respond(
+                {"error": "invalid_checkout"},
+                HTTPStatus.BAD_REQUEST,
+            )
             return
+
         order_id = f"order-{uuid.uuid4()}"
         payment_id = f"payment-{uuid.uuid4()}"
         event_id = f"event-{uuid.uuid4()}"
+
         try:
             with psycopg.connect(DATABASE_URL) as connection:
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        """SELECT order_id FROM demo_orders
-                        WHERE tenant_id = %s AND idempotency_key = %s""",
-                        (session["tenant_id"], idempotency_key),
+                        """SELECT order_id
+                        FROM demo_orders
+                        WHERE tenant_id = %s
+                        AND idempotency_key = %s""",
+                        (
+                            session["tenant_id"],
+                            idempotency_key,
+                        ),
                     )
                     prior = cursor.fetchone()
+
                     if prior is not None:
-                        self.respond({"order_id": prior[0], "idempotent": True})
+                        self.respond(
+                            {
+                                "order_id": prior[0],
+                                "idempotent": True,
+                            }
+                        )
                         return
+
                     cursor.execute(
-                        """UPDATE demo_products SET available = available - %s
-                        WHERE tenant_id = %s AND product_id = %s AND available >= %s
+                        """UPDATE demo_products
+                        SET available = available - %s
+                        WHERE tenant_id = %s
+                        AND product_id = %s
+                        AND available >= %s
                         RETURNING price_cents""",
-                        (quantity, session["tenant_id"], product_id, quantity),
+                        (
+                            quantity,
+                            session["tenant_id"],
+                            product_id,
+                            quantity,
+                        ),
                     )
-                    if cursor.fetchone() is None:
+
+                    price_row = cursor.fetchone()
+                    if price_row is None:
                         raise ValueError("inventory_unavailable")
+
                     cursor.execute(
                         """INSERT INTO demo_orders
-                        (tenant_id, order_id, customer_id, product_id, quantity, payment_id,
-                         fulfillment_status, idempotency_key)
+                        (
+                            tenant_id,
+                            order_id,
+                            customer_id,
+                            product_id,
+                            quantity,
+                            payment_id,
+                            fulfillment_status,
+                            idempotency_key
+                        )
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
                         (
                             session["tenant_id"],
@@ -329,15 +530,25 @@ class Handler(BaseHTTPRequestHandler):
                             idempotency_key,
                         ),
                     )
+
                     event_payload = json.dumps(
                         {
                             "order_id": order_id,
                             "payment_id": payment_id,
-                            "fulfillment_status": f"{fulfillment_method}_promised",
+                            "fulfillment_status": (
+                                f"{fulfillment_method}_promised"
+                            ),
                         }
                     )
+
                     cursor.execute(
-                        """INSERT INTO demo_outbox (event_id, tenant_id, event_type, payload)
+                        """INSERT INTO demo_outbox
+                        (
+                            event_id,
+                            tenant_id,
+                            event_type,
+                            payload
+                        )
                         VALUES (%s, %s, %s, %s::jsonb)""",
                         (
                             event_id,
@@ -346,10 +557,16 @@ class Handler(BaseHTTPRequestHandler):
                             event_payload,
                         ),
                     )
+
         except ValueError as error:
-            self.respond({"error": str(error)}, HTTPStatus.CONFLICT)
+            self.respond(
+                {"error": str(error)},
+                HTTPStatus.CONFLICT,
+            )
             return
+
         publish_pending()
+
         self.respond(
             {
                 "order_id": order_id,
@@ -361,48 +578,94 @@ class Handler(BaseHTTPRequestHandler):
         )
 
     def orders(self, session: dict[str, str]) -> None:
+        """Return projected orders belonging to the active tenant."""
         with psycopg.connect(DATABASE_URL) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    """SELECT order_id, fulfillment_status FROM demo_order_projection
-                    WHERE tenant_id = %s ORDER BY order_id""",
+                    """SELECT order_id, fulfillment_status
+                    FROM demo_order_projection
+                    WHERE tenant_id = %s
+                    ORDER BY order_id""",
                     (session["tenant_id"],),
                 )
-                orders = [
-                    {"order_id": row[0], "fulfillment_status": row[1]}
-                    for row in cursor.fetchall()
-                ]
+                rows = cursor.fetchall() or []
+
+        orders = [
+            {
+                "order_id": row[0],
+                "fulfillment_status": row[1],
+            }
+            for row in rows
+        ]
+
         self.respond({"orders": orders})
 
     def sales_report(self, session: dict[str, str]) -> None:
+        """Return a simple tenant-scoped sales report."""
         with psycopg.connect(DATABASE_URL) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    """SELECT count(*), coalesce(sum(quantity), 0) FROM demo_orders
+                    """SELECT
+                        count(*),
+                        coalesce(sum(quantity), 0)
+                    FROM demo_orders
                     WHERE tenant_id = %s""",
                     (session["tenant_id"],),
                 )
-                orders, units = cursor.fetchone()
-        self.respond({"orders": orders, "units": units})
+                row = cursor.fetchone()
+
+        if row is None:
+            orders = 0
+            units = 0
+        else:
+            orders = row[0]
+            units = row[1]
+
+        self.respond(
+            {
+                "orders": orders,
+                "units": units,
+            }
+        )
 
     def case(self, session: dict[str, str]) -> None:
+        """Accept a tenant-scoped demonstration support case."""
         self.respond(
-            {"status": "accepted", "tenant": session["tenant_id"]},
+            {
+                "status": "accepted",
+                "tenant": session["tenant_id"],
+            },
             HTTPStatus.CREATED,
         )
 
     def require_session(self) -> dict[str, str] | None:
+        """Require an authenticated session for a request."""
         session = session_from_request(self)
+
         if session is None:
-            self.respond({"error": "authentication_required"}, HTTPStatus.UNAUTHORIZED)
+            self.respond(
+                {"error": "authentication_required"},
+                HTTPStatus.UNAUTHORIZED,
+            )
+
         return session
 
     def payload(self) -> dict[str, Any]:
-        length = int(self.headers.get("Content-Length", "0"))
+        """Decode the current JSON request body."""
+        length = int(
+            self.headers.get(
+                "Content-Length",
+                "0",
+            )
+        )
+
         try:
-            value = json.loads(self.rfile.read(length) or b"{}")
+            value = json.loads(
+                self.rfile.read(length) or b"{}"
+            )
         except json.JSONDecodeError:
             value = {}
+
         return value if isinstance(value, dict) else {}
 
     def respond(
@@ -411,20 +674,50 @@ class Handler(BaseHTTPRequestHandler):
         status: HTTPStatus = HTTPStatus.OK,
         headers: dict[str, str] | None = None,
     ) -> None:
+        """Send a JSON HTTP response."""
         encoded = json.dumps(body).encode()
+
         self.send_response(status)
-        self.send_header("content-type", "application/json")
-        self.send_header("content-length", str(len(encoded)))
+        self.send_header(
+            "content-type",
+            "application/json",
+        )
+        self.send_header(
+            "content-length",
+            str(len(encoded)),
+        )
+
         for name, value in (headers or {}).items():
             self.send_header(name, value)
+
         self.end_headers()
         self.wfile.write(encoded)
 
-    def log_message(self, format: str, *args: object) -> None:
-        print(json.dumps({"message": format % args}), flush=True)
+    def log_message(
+        self,
+        format: str,
+        *args: object,
+    ) -> None:
+        """Write structured HTTP access logging."""
+        print(
+            json.dumps(
+                {
+                    "message": format % args,
+                }
+            ),
+            flush=True,
+        )
 
 
 if __name__ == "__main__":
     migrate_and_seed()
-    threading.Thread(target=consume_events, daemon=True).start()
-    ThreadingHTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+
+    threading.Thread(
+        target=consume_events,
+        daemon=True,
+    ).start()
+
+    ThreadingHTTPServer(
+        ("0.0.0.0", 8080),
+        Handler,
+    ).serve_forever()
