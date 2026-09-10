@@ -1,0 +1,42 @@
+name: erpise-demo
+services:
+  postgres:
+    image: postgres:17.4-alpine
+    environment:
+      POSTGRES_DB: erpise_demo
+      POSTGRES_USER: erpise_demo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demo-only-password}
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erpise_demo -d erpise_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
+    command: ["redpanda","start","--overprovisioned","--smp=1","--memory=1G","--reserve-memory=0M","--node-id=0","--check=false"]
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health --api-urls localhost:9644"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  backend:
+    build: ./services/demo/backend
+    environment:
+      DATABASE_URL: postgresql://erpise_demo:${POSTGRES_PASSWORD:-demo-only-password}@postgres:5432/erpise_demo
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+    depends_on:
+      postgres: {condition: service_healthy}
+      redpanda: {condition: service_healthy}
+    ports: ["8080:8080"]
+  frontend:
+    build: ./services/demo/frontend
+    depends_on:
+      backend: {condition: service_healthy}
+    ports: ["3000:80"]
+  edge:
+    build: ./services/demo/edge
+    depends_on:
+      postgres: {condition: service_healthy}
+      redpanda: {condition: service_healthy}
+    ports: ["8090:8090"]

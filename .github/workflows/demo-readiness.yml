@@ -1,0 +1,18 @@
+name: Demo Readiness
+on:
+  push:
+    branches: [main, feature/**]
+  pull_request:
+jobs:
+  demo:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.demo.example .env.demo
+      - run: docker compose --env-file .env.demo -f docker-compose.demo.yml config --quiet
+      - run: docker compose --env-file .env.demo -f docker-compose.demo.yml up --build --detach --wait --wait-timeout 180
+      - run: sh scripts/demo-smoke.sh
+      - if: failure()
+        run: docker compose --env-file .env.demo -f docker-compose.demo.yml logs --no-color
+      - if: always()
+        run: docker compose --env-file .env.demo -f docker-compose.demo.yml down --volumes
