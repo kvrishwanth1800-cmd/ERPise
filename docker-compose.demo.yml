@@ -30,7 +30,7 @@ services:
       - --advertise-pandaproxy-addr=localhost:8082
     ports: ["19092:19092", "19644:9644"]
     healthcheck:
-      test: ["CMD-SHELL", "rpk cluster health --api-urls localhost:9644"]
+      test: ["CMD-SHELL", "rpk redpanda admin brokers list --api-urls localhost:9644"]
       interval: 5s
       timeout: 5s
       retries: 30
