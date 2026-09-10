@@ -1,0 +1,73 @@
+name: Guarded demo MyPy repair
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/evt-02-transactional-outbox
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: 0.6.3
+      - name: Apply one guarded source correction
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("services/demo/backend/app.py")
+          source = path.read_text()
+          expected = '''                products = [
+                    {
+                        "id": row[0],
+                        "sku": row[1],
+                        "name": row[2],
+                        "price_cents": row[3],
+                        "available": row[4],
+                    }
+                    for row in cursor.fetchall()
+                ]
+'''
+          replacement = '''                rows = cursor.fetchall()
+                products = [
+                    {
+                        "id": row[0],
+                        "sku": row[1],
+                        "name": row[2],
+                        "price_cents": row[3],
+                        "available": row[4],
+                    }
+                    for row in (rows or [])
+                ]
+'''
+          if source.count(expected) != 1:
+              raise SystemExit("The expected product fetchall block must occur exactly once")
+          if source.count("for row in cursor.fetchall()") != 1:
+              raise SystemExit("Unexpected additional direct fetchall iterations")
+          path.write_text(source.replace(expected, replacement))
+          PY
+          test "$(git diff --name-only | wc -l)" -eq 1
+          test "$(git diff --name-only)" = "services/demo/backend/app.py"
+          git diff --check
+          git diff -- services/demo/backend/app.py
+      - name: Validate focused correction
+        run: |
+          uv sync --all-groups
+          uv run ruff check services/demo/backend
+          pnpm typecheck:python
+          uv run pytest services/demo/backend/test_app_contract.py
+      - name: Commit verified correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add services/demo/backend/app.py
+          git diff --cached --check
+          git commit -m "fix(demo): guard product cursor rows"
+          git push origin HEAD:feature/evt-02-transactional-outbox
