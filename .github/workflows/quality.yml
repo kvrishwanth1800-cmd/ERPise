@@ -23,7 +23,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          uvx ruff check services/demo/backend/integrated --output-format=github 2>&1 | tee ruff-output.log
+          uvx ruff check services/demo/backend/integrated --output-format=github --diff 2>&1 | tee ruff-output.log
           status=${PIPESTATUS[0]}
           {
             echo "## Integrated backend Ruff"
