@@ -12,9 +12,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 10s
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
-    command: ["redpanda", "start", "--overprovisioned", "--smp=1", "--memory=1G", "--reserve-memory=0M", "--node-id=0", "--check=false", "--kafka-addr=PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092", "--advertise-kafka-addr=PLAINTEXT://redpanda:9092,OUTSIDE://localhost:19092", "--pandaproxy-addr=0.0.0.0:8082", "--advertise-pandaproxy-addr=localhost:8082"]
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092,OUTSIDE://localhost:19092
+      - --pandaproxy-addr=0.0.0.0:8082
+      - --advertise-pandaproxy-addr=localhost:8082
     ports: ["19092:19092", "19644:9644"]
     healthcheck:
       test: ["CMD-SHELL", "rpk cluster health --api-urls localhost:9644"]
