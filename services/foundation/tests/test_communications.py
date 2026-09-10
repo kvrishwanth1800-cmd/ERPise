@@ -7,7 +7,7 @@ from foundation.communications import (
     LocalProviderAdapter,
     MessageTemplate,
 )
-from foundation.organization import ScopeContext, ScopeDeniedError
+from foundation.organization import ScopeContext
 
 
 @pytest.fixture
@@ -65,7 +65,7 @@ def test_consent_suppression_template_and_tenant_controls() -> None:
             MessageTemplate("bad", "tenant-a", "sms", 1, "", True),
         )
     other_scope = ScopeContext("tenant-b", is_tenant_administrator=True)
-    with pytest.raises(ScopeDeniedError):
+    with pytest.raises(CommunicationError):
         service.request(
             other_scope, "m-2", "email", "customer@example.test", "receipt", "key-2", "agent", "t-2"
         )
