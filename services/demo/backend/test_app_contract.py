@@ -13,7 +13,8 @@ def test_demo_adapter_keeps_login_and_session_routes() -> None:
 def test_checkout_uses_database_and_outbox_transaction() -> None:
     assert "INSERT INTO demo_orders" in SOURCE
     assert "INSERT INTO demo_outbox" in SOURCE
-    assert "UPDATE demo_products SET available" in SOURCE
+    assert "UPDATE demo_products" in SOURCE
+    assert "SET available = available - %s" in SOURCE
 
 
 def test_projection_consumer_is_idempotent() -> None:
