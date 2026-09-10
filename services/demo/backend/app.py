@@ -1,7 +1,6 @@
 """Demo-mode HTTP adapter with authenticated, tenant-scoped durable workflows."""
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import secrets
@@ -72,7 +71,9 @@ def publish_pending() -> None:
                         "event_type": event_type,
                         "payload": payload,
                     }
-                    producer.send(TOPIC, encode_event(event), key=event_id.encode()).get(timeout=5)
+                    producer.send(TOPIC, encode_event(event), key=event_id.encode()).get(
+                        timeout=5
+                    )
                     cursor.execute(
                         "UPDATE demo_outbox SET published_at = now() WHERE event_id = %s",
                         (event_id,),
@@ -80,7 +81,10 @@ def publish_pending() -> None:
         producer.flush()
         producer.close()
     except Exception as error:
-        print(json.dumps({"event": "outbox.publish.failed", "error": str(error)}), flush=True)
+        print(
+            json.dumps({"event": "outbox.publish.failed", "error": str(error)}),
+            flush=True,
+        )
 
 
 def apply_projection(event: dict[str, Any]) -> None:
@@ -118,7 +122,10 @@ def consume_events() -> None:
             for message in consumer:
                 apply_projection(json.loads(message.value.decode()))
         except Exception as error:
-            print(json.dumps({"event": "projection.consumer.failed", "error": str(error)}), flush=True)
+            print(
+                json.dumps({"event": "projection.consumer.failed", "error": str(error)}),
+                flush=True,
+            )
             time.sleep(2)
 
 
@@ -137,7 +144,12 @@ def session_from_request(handler: BaseHTTPRequestHandler) -> dict[str, str] | No
             row = cursor.fetchone()
     if row is None:
         return None
-    return {"session_id": value.value, "tenant_id": row[0], "user_id": row[1], "role": row[2]}
+    return {
+        "session_id": value.value,
+        "tenant_id": row[0],
+        "user_id": row[1],
+        "role": row[2],
+    }
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -149,7 +161,13 @@ class Handler(BaseHTTPRequestHandler):
         if session is None:
             return
         if self.path == "/api/session":
-            self.respond({"tenant": session["tenant_id"], "user": session["user_id"], "role": session["role"]})
+            self.respond(
+                {
+                    "tenant": session["tenant_id"],
+                    "user": session["user_id"],
+                    "role": session["role"],
+                }
+            )
             return
         if self.path == "/api/products":
             self.products(session)
@@ -189,7 +207,9 @@ class Handler(BaseHTTPRequestHandler):
             self.respond({"error": "demo_login_disabled"}, HTTPStatus.FORBIDDEN)
             return
         valid = secrets.compare_digest(str(payload.get("email", "")), DEMO_EMAIL)
-        valid = valid and secrets.compare_digest(str(payload.get("password", "")), DEMO_PASSWORD)
+        valid = valid and secrets.compare_digest(
+            str(payload.get("password", "")), DEMO_PASSWORD
+        )
         if not valid:
             self.respond({"error": "invalid_credentials"}, HTTPStatus.UNAUTHORIZED)
             return
@@ -200,11 +220,21 @@ class Handler(BaseHTTPRequestHandler):
                     """INSERT INTO demo_sessions
                     (session_id, tenant_id, user_id, role, expires_at)
                     VALUES (%s, %s, %s, %s, %s)""",
-                    (session_id, TENANT_ID, USER_ID, ROLE, datetime.now(UTC) + timedelta(hours=8)),
+                    (
+                        session_id,
+                        TENANT_ID,
+                        USER_ID,
+                        ROLE,
+                        datetime.now(UTC) + timedelta(hours=8),
+                    ),
                 )
         self.respond(
             {"tenant": TENANT_ID, "user": USER_ID, "role": ROLE},
-            headers={"Set-Cookie": f"erpise_session={session_id}; HttpOnly; SameSite=Strict; Path=/"},
+            headers={
+                "Set-Cookie": (
+                    f"erpise_session={session_id}; HttpOnly; SameSite=Strict; Path=/"
+                )
+            },
         )
 
     def logout(self) -> None:
@@ -227,7 +257,13 @@ class Handler(BaseHTTPRequestHandler):
                     (session["tenant_id"],),
                 )
                 products = [
-                    {"id": row[0], "sku": row[1], "name": row[2], "price_cents": row[3], "available": row[4]}
+                    {
+                        "id": row[0],
+                        "sku": row[1],
+                        "name": row[2],
+                        "price_cents": row[3],
+                        "available": row[4],
+                    }
                     for row in cursor.fetchall()
                 ]
         self.respond({"products": products})
@@ -238,7 +274,8 @@ class Handler(BaseHTTPRequestHandler):
         with psycopg.connect(DATABASE_URL) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "UPDATE demo_customers SET consented = TRUE WHERE tenant_id = %s AND customer_id = %s",
+                    "UPDATE demo_customers SET consented = TRUE WHERE tenant_id = %s "
+                    "AND customer_id = %s",
                     (session["tenant_id"], customer_id),
                 )
         self.respond({"customer_id": customer_id, "consented": True})
@@ -282,26 +319,44 @@ class Handler(BaseHTTPRequestHandler):
                          fulfillment_status, idempotency_key)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
                         (
-                            session["tenant_id"], order_id, customer_id, product_id, quantity,
-                            payment_id, f"{fulfillment_method}_promised", idempotency_key,
+                            session["tenant_id"],
+                            order_id,
+                            customer_id,
+                            product_id,
+                            quantity,
+                            payment_id,
+                            f"{fulfillment_method}_promised",
+                            idempotency_key,
                         ),
                     )
                     event_payload = json.dumps(
-                        {"order_id": order_id, "payment_id": payment_id,
-                         "fulfillment_status": f"{fulfillment_method}_promised"}
+                        {
+                            "order_id": order_id,
+                            "payment_id": payment_id,
+                            "fulfillment_status": f"{fulfillment_method}_promised",
+                        }
                     )
                     cursor.execute(
                         """INSERT INTO demo_outbox (event_id, tenant_id, event_type, payload)
                         VALUES (%s, %s, %s, %s::jsonb)""",
-                        (event_id, session["tenant_id"], "order.created.v1", event_payload),
+                        (
+                            event_id,
+                            session["tenant_id"],
+                            "order.created.v1",
+                            event_payload,
+                        ),
                     )
         except ValueError as error:
             self.respond({"error": str(error)}, HTTPStatus.CONFLICT)
             return
         publish_pending()
         self.respond(
-            {"order_id": order_id, "payment_id": payment_id, "reservation": "confirmed",
-             "fulfillment": f"{fulfillment_method}_promised"},
+            {
+                "order_id": order_id,
+                "payment_id": payment_id,
+                "reservation": "confirmed",
+                "fulfillment": f"{fulfillment_method}_promised",
+            },
             HTTPStatus.CREATED,
         )
 
@@ -313,7 +368,10 @@ class Handler(BaseHTTPRequestHandler):
                     WHERE tenant_id = %s ORDER BY order_id""",
                     (session["tenant_id"],),
                 )
-                orders = [{"order_id": row[0], "fulfillment_status": row[1]} for row in cursor.fetchall()]
+                orders = [
+                    {"order_id": row[0], "fulfillment_status": row[1]}
+                    for row in cursor.fetchall()
+                ]
         self.respond({"orders": orders})
 
     def sales_report(self, session: dict[str, str]) -> None:
@@ -328,7 +386,10 @@ class Handler(BaseHTTPRequestHandler):
         self.respond({"orders": orders, "units": units})
 
     def case(self, session: dict[str, str]) -> None:
-        self.respond({"status": "accepted", "tenant": session["tenant_id"]}, HTTPStatus.CREATED)
+        self.respond(
+            {"status": "accepted", "tenant": session["tenant_id"]},
+            HTTPStatus.CREATED,
+        )
 
     def require_session(self) -> dict[str, str] | None:
         session = session_from_request(self)
