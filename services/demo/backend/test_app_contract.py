@@ -1,4 +1,5 @@
 """Static contract guards for the demo adapter's required security boundaries."""
+
 from pathlib import Path
 
 
