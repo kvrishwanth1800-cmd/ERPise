@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import threading
 
-import app
 from foundation.access import AuthorizationDeniedError
 from foundation.organization import ScopeDeniedError
 
-from integrated.auth import FoundationSessionAuthorizer
+import app
 
+from integrated.auth import FoundationSessionAuthorizer
 
 AUTHORIZER = FoundationSessionAuthorizer()
 
