@@ -11,11 +11,11 @@ from foundation.organization import ScopeContext, ScopeDeniedError
 
 
 class CommunicationError(ValueError):
-    """Raised for an invalid governed communication request."""
+    """Raised for an invalid governed communication operation."""
 
 
 class RetryableProviderError(CommunicationError):
-    """Raised when the local provider operation may be retried."""
+    """Raised when the local provider operation can be retried."""
 
 
 @dataclass(frozen=True)
@@ -50,8 +50,17 @@ class CommunicationEvent:
     trace_id: str
 
 
+@dataclass(frozen=True)
+class InboundMessage:
+    tenant_id: str
+    provider: str
+    event_id: str
+    sequence: int
+    body: str
+
+
 class LocalProviderAdapter:
-    """Sandbox adapter that returns configured outcomes without exposing credentials."""
+    """Sandbox provider. It holds no production credential or customer state."""
 
     def __init__(self, outcomes: list[str] | None = None) -> None:
         self._outcomes = outcomes or ["accepted"]
@@ -59,7 +68,7 @@ class LocalProviderAdapter:
 
     def send(self, channel: str, recipient: str, body: str) -> str:
         outcome = self._outcomes.pop(0) if self._outcomes else "accepted"
-        if outcome == "timeout" or outcome == "rate_limited":
+        if outcome in {"timeout", "rate_limited"}:
             raise RetryableProviderError(outcome)
         if outcome == "permanent_failure":
             raise CommunicationError(outcome)
@@ -73,17 +82,29 @@ class LocalProviderAdapter:
         return compare_digest(signature, expected)
 
 
-class CommunicationService:
-    """Enforces template, consent, suppression, channel, retry, and audit controls."""
+class EmailLocalProviderAdapter(LocalProviderAdapter):
+    """Local fake with explicit email capability."""
 
-    def __init__(self, audit: AuditRecorder, provider: LocalProviderAdapter) -> None:
+
+class SmsLocalProviderAdapter(LocalProviderAdapter):
+    """Local fake with explicit SMS capability."""
+
+
+class CommunicationService:
+    """Enforces tenant, template, consent, preference, retry, audit, and replay controls."""
+
+    def __init__(self, audit: AuditRecorder, provider: LocalProviderAdapter, max_attempts: int = 3) -> None:
         self._audit = audit
         self._provider = provider
+        self._max_attempts = max_attempts
         self._templates: dict[tuple[str, str], MessageTemplate] = {}
         self._consents: set[tuple[str, str, str]] = set()
         self._suppressed: set[tuple[str, str, str]] = set()
         self._messages: dict[str, MessageRequest] = {}
         self._idempotent: dict[tuple[str, str], MessageRequest] = {}
+        self._webhook_sequences: dict[tuple[str, str], int] = {}
+        self._webhook_events: set[tuple[str, str, str]] = set()
+        self.inbound: list[InboundMessage] = []
         self.outbox: list[CommunicationEvent] = []
 
     def approve_template(self, scope: ScopeContext, template: MessageTemplate) -> None:
@@ -95,6 +116,14 @@ class CommunicationService:
     def grant_consent(self, scope: ScopeContext, recipient: str, channel: str) -> None:
         self._require_admin(scope)
         self._consents.add((scope.tenant_id, recipient, channel))
+        self._suppressed.discard((scope.tenant_id, recipient, channel))
+
+    def revoke_consent(self, scope: ScopeContext, recipient: str, channel: str) -> None:
+        self._require_admin(scope)
+        self._consents.discard((scope.tenant_id, recipient, channel))
+
+    def unsubscribe(self, scope: ScopeContext, recipient: str, channel: str) -> None:
+        self.suppress(scope, recipient, channel)
 
     def suppress(self, scope: ScopeContext, recipient: str, channel: str) -> None:
         self._require_admin(scope)
@@ -110,16 +139,17 @@ class CommunicationService:
         idempotency_key: str,
         actor_id: str,
         trace_id: str,
+        channel_open: bool = True,
     ) -> MessageRequest:
         self._require_scope(scope, actor_id)
         key = (scope.tenant_id, idempotency_key)
         if key in self._idempotent:
             return self._idempotent[key]
         template = self._templates.get((scope.tenant_id, template_id))
-        allowed = (scope.tenant_id, recipient, channel) in self._consents
-        suppressed = (scope.tenant_id, recipient, channel) in self._suppressed
-        if not message_id or message_id in self._messages or not template or not allowed or suppressed:
-            raise CommunicationError("Message requires approved template, consent, and no suppression.")
+        policy_key = (scope.tenant_id, recipient, channel)
+        allowed = policy_key in self._consents and policy_key not in self._suppressed
+        if not message_id or message_id in self._messages or not template or not allowed or not channel_open:
+            raise CommunicationError("Message requires approved template, consent, and an open channel window.")
         message = MessageRequest(
             message_id,
             scope.tenant_id,
@@ -134,27 +164,70 @@ class CommunicationService:
         return self._send(message, template.body, actor_id, trace_id)
 
     def retry(
-        self, scope: ScopeContext, message_id: str, actor_id: str, trace_id: str
+        self,
+        scope: ScopeContext,
+        message_id: str,
+        actor_id: str,
+        trace_id: str,
     ) -> MessageRequest:
         message = self._get(scope, message_id)
         if message.status != "retryable":
             raise CommunicationError("Only retryable messages can be retried.")
+        if message.attempts >= self._max_attempts:
+            return self._record(message, "dead_letter", actor_id, trace_id, "retry_exhausted")
         template = self._templates[(scope.tenant_id, message.template_id)]
         return self._send(message, template.body, actor_id, trace_id)
 
     def update_delivery(
-        self, scope: ScopeContext, message_id: str, status: str, actor_id: str, trace_id: str
+        self,
+        scope: ScopeContext,
+        message_id: str,
+        status: str,
+        actor_id: str,
+        trace_id: str,
     ) -> MessageRequest:
         message = self._get(scope, message_id)
         if status not in {"delivered", "undeliverable"} or message.status != "accepted":
             raise CommunicationError("Delivery updates require an accepted message and supported status.")
         return self._record(message, status, actor_id, trace_id)
 
-    def _send(self, message: MessageRequest, body: str, actor_id: str, trace_id: str) -> MessageRequest:
+    def receive_webhook(
+        self,
+        scope: ScopeContext,
+        signature: str,
+        payload: str,
+        secret: str,
+        provider: str,
+        event_id: str,
+        sequence: int,
+    ) -> bool:
+        if not LocalProviderAdapter.valid_webhook(signature, payload, secret):
+            return False
+        key = (scope.tenant_id, provider)
+        event_key = (scope.tenant_id, provider, event_id)
+        if event_key in self._webhook_events or sequence <= self._webhook_sequences.get(key, 0):
+            return False
+        self._webhook_events.add(event_key)
+        self._webhook_sequences[key] = sequence
+        self.inbound.append(InboundMessage(scope.tenant_id, provider, event_id, sequence, payload))
+        return True
+
+    @staticmethod
+    def redact_telemetry(value: str) -> str:
+        return "[REDACTED]" if value else ""
+
+    def _send(
+        self,
+        message: MessageRequest,
+        body: str,
+        actor_id: str,
+        trace_id: str,
+    ) -> MessageRequest:
         try:
             provider_id = self._provider.send(message.channel, message.recipient, body)
         except RetryableProviderError as error:
-            return self._record(message, "retryable", actor_id, trace_id, str(error))
+            status = "dead_letter" if message.attempts + 1 >= self._max_attempts else "retryable"
+            return self._record(message, status, actor_id, trace_id, str(error))
         except CommunicationError as error:
             return self._record(message, "dead_letter", actor_id, trace_id, str(error))
         return self._record(message, "accepted", actor_id, trace_id, provider_message_id=provider_id)
@@ -181,6 +254,7 @@ class CommunicationService:
             failure_kind,
         )
         self._messages[message.message_id] = updated
+        self._idempotent[(message.tenant_id, message.idempotency_key)] = updated
         self._audit.record(actor_id, "communications", "adapter", "governed send", "consent", trace_id, status)
         self.outbox.append(CommunicationEvent(message.message_id, message.tenant_id, status, trace_id))
         return updated
