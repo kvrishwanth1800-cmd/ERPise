@@ -1,1 +1,84 @@
-<!doctype html><html><head><meta charset="utf-8"><title>ERPise Demo</title></head><body><main><h1>ERPise Demonstration</h1><p>DEMONSTRATION / PRE-PRODUCTION</p><button id="login">Use demo administrator</button><pre id="data">Loading demo tenant...</pre></main><script>fetch('/api/demo').then(r=>r.json()).then(x=>document.querySelector('#data').textContent=JSON.stringify(x,null,2));document.querySelector('#login').onclick=()=>alert('Demo administrator selected');</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ERPise Program A Demo</title>
+  <style>body{font-family:system-ui;margin:2rem;max-width:52rem}fieldset,section{margin:1rem 0;padding:1rem}button,input,select{font:inherit;margin:.25rem}#app{display:none}.error{color:#a00}.success{color:#063}pre{white-space:pre-wrap}</style>
+</head>
+<body>
+  <main>
+    <h1>ERPise Program A</h1>
+    <p>Demonstration / Pre-production</p>
+    <form id="login">
+      <fieldset><legend>Demo sign in</legend>
+        <label>Email <input id="email" type="email" required value="demo@erpise.local"></label>
+        <label>Password <input id="password" type="password" required value="demo-only-password"></label>
+        <button>Sign in</button>
+      </fieldset>
+    </form>
+    <p id="status" role="status"></p>
+    <div id="app">
+      <p id="context"></p><button id="logout">Sign out</button>
+      <section><h2>Catalog and availability</h2><div id="products">Loading products.</div></section>
+      <section>
+        <h2>Customer consent and checkout</h2>
+        <button id="consent">Grant customer email consent</button>
+        <form id="checkout">
+          <label>Product <select id="product" required></select></label>
+          <label>Quantity <input id="quantity" type="number" min="1" value="1" required></label>
+          <label>Fulfilment <select id="method"><option value="pickup">Pickup</option><option value="delivery">Delivery</option></select></label>
+          <button>Reserve, pay, and create order</button>
+        </form>
+        <pre id="checkout-result"></pre>
+      </section>
+      <section><h2>Orders and reporting</h2><button id="refresh">Refresh workflow status</button><pre id="orders"></pre></section>
+      <section><h2>Communications and support</h2><button id="case">Create support case</button><pre id="case-result"></pre></section>
+    </div>
+  </main>
+  <script>
+    const state = { products: [] };
+    const status = document.querySelector('#status');
+    async function api(path, options = {}) {
+      const response = await fetch(path, { credentials: 'same-origin', ...options });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'request_failed');
+      return data;
+    }
+    function message(text, kind = '') { status.className = kind; status.textContent = text; }
+    async function refresh() {
+      const [catalog, orders, report] = await Promise.all([
+        api('/api/products'), api('/api/orders'), api('/api/reports/sales')
+      ]);
+      state.products = catalog.products;
+      document.querySelector('#products').innerHTML = catalog.products.map(product =>
+        `<p><strong>${product.name}</strong> (${product.sku}): $${(product.price_cents / 100).toFixed(2)}, ${product.available} available</p>`
+      ).join('');
+      document.querySelector('#product').innerHTML = catalog.products.map(product =>
+        `<option value="${product.id}">${product.name}</option>`
+      ).join('');
+      document.querySelector('#orders').textContent = JSON.stringify({ orders: orders.orders, report }, null, 2);
+    }
+    document.querySelector('#login').addEventListener('submit', async event => {
+      event.preventDefault(); message('Signing in.');
+      try {
+        const login = await api('/api/auth/login', { method: 'POST', headers: {'content-type':'application/json'}, body: JSON.stringify({email: email.value, password: password.value}) });
+        document.querySelector('#login').style.display = 'none'; document.querySelector('#app').style.display = 'block';
+        document.querySelector('#context').textContent = `${login.user} is active for ${login.tenant} as ${login.role}.`;
+        await refresh(); message('Authenticated Program A session is active.', 'success');
+      } catch (error) { message(`Sign-in failed: ${error.message}`, 'error'); }
+    });
+    document.querySelector('#logout').onclick = async () => { await api('/api/auth/logout', {method:'POST'}); location.reload(); };
+    document.querySelector('#consent').onclick = async () => { try { await api('/api/consent', {method:'POST', headers:{'content-type':'application/json'}, body:'{"customer_id":"customer"}'}); message('Customer consent recorded.', 'success'); } catch (error) { message(error.message, 'error'); } };
+    document.querySelector('#checkout').addEventListener('submit', async event => {
+      event.preventDefault(); message('Submitting governed checkout.');
+      try {
+        const order = await api('/api/orders', {method:'POST', headers:{'content-type':'application/json','Idempotency-Key':crypto.randomUUID()}, body:JSON.stringify({product_id:product.value, quantity:Number(quantity.value), fulfillment_method:method.value, customer_id:'customer'})});
+        document.querySelector('#checkout-result').textContent = JSON.stringify(order, null, 2); await new Promise(resolve => setTimeout(resolve, 400)); await refresh(); message('Order, reservation, payment, and fulfilment workflow completed.', 'success');
+      } catch (error) { message(`Checkout failed: ${error.message}`, 'error'); }
+    });
+    document.querySelector('#refresh').onclick = () => refresh().catch(error => message(error.message, 'error'));
+    document.querySelector('#case').onclick = async () => { try { const result = await api('/api/cases', {method:'POST'}); document.querySelector('#case-result').textContent = JSON.stringify(result, null, 2); } catch (error) { message(error.message, 'error'); } };
+  </script>
+</body>
+</html>
