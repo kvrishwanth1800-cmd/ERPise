@@ -7,6 +7,7 @@ import threading
 import app
 from foundation.access import AuthorizationDeniedError
 from foundation.organization import ScopeDeniedError
+
 from integrated.auth import FoundationSessionAuthorizer
 
 AUTHORIZER = FoundationSessionAuthorizer()
