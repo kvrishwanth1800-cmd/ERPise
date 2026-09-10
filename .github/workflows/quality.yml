@@ -15,33 +15,15 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.5
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.14.0
-      - name: Install TypeScript workspace dependencies
-        run: env -u CI -u GITHUB_ACTIONS -u BUILD_NUMBER -u RUN_ID -u CONTINUOUS_INTEGRATION pnpm install --no-frozen-lockfile --config.frozen-lockfile=false
-      - name: Check TypeScript formatting
-        run: pnpm format
-      - name: Lint TypeScript workspace
-        run: pnpm lint
-      - name: Type-check TypeScript workspace
-        run: pnpm typecheck
-      - name: Test TypeScript workspace
-        run: pnpm test
       - uses: astral-sh/setup-uv@v5
         with:
           version: 0.6.3
-      - name: Sync Python workspace
-        run: uv sync --all-groups
       - name: Lint integrated backend with Ruff
         id: ruff
         continue-on-error: true
         run: |
           set -o pipefail
-          uv run ruff check services/demo/backend/integrated --output-format=github 2>&1 | tee ruff-output.log
+          uvx ruff check services/demo/backend/integrated --output-format=github 2>&1 | tee ruff-output.log
           status=${PIPESTATUS[0]}
           {
             echo "## Integrated backend Ruff"
@@ -60,6 +42,24 @@ jobs:
       - name: Preserve Ruff exit code
         if: steps.ruff.outcome == 'failure'
         run: exit 1
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+      - name: Install TypeScript workspace dependencies
+        run: env -u CI -u GITHUB_ACTIONS -u BUILD_NUMBER -u RUN_ID -u CONTINUOUS_INTEGRATION pnpm install --no-frozen-lockfile --config.frozen-lockfile=false
+      - name: Check TypeScript formatting
+        run: pnpm format
+      - name: Lint TypeScript workspace
+        run: pnpm lint
+      - name: Type-check TypeScript workspace
+        run: pnpm typecheck
+      - name: Test TypeScript workspace
+        run: pnpm test
+      - name: Sync Python workspace
+        run: uv sync --all-groups
       - name: Type-check Python workspace
         run: pnpm typecheck:python
       - name: Test Python workspace
