@@ -1,6 +1,9 @@
 name: Guarded demo MyPy repair
 
 on:
+  push:
+    branches:
+      - feature/evt-02-transactional-outbox
   workflow_dispatch:
 
 permissions:
@@ -8,6 +11,7 @@ permissions:
 
 jobs:
   repair:
+    if: github.event.head_commit.message == 'ci: trigger guarded mypy repair on branch push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
