@@ -15,21 +15,8 @@ services:
       start_period: 10s
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
-    command:
-      - redpanda
-      - start
-      - --overprovisioned
-      - --smp=1
-      - --memory=1G
-      - --reserve-memory=0M
-      - --node-id=0
-      - --check=false
-      - --kafka-addr=PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092
-      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092,OUTSIDE://localhost:19092
-      - --pandaproxy-addr=0.0.0.0:8082
-      - --advertise-pandaproxy-addr=localhost:8082
+    command: ["redpanda", "start", "--overprovisioned", "--smp=1", "--memory=1G", "--reserve-memory=0M", "--node-id=0", "--check=false", "--kafka-addr=PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092", "--advertise-kafka-addr=PLAINTEXT://redpanda:9092,OUTSIDE://localhost:19092", "--pandaproxy-addr=0.0.0.0:8082", "--advertise-pandaproxy-addr=localhost:8082"]
     ports: ["19092:19092", "19644:9644"]
-    volumes: ["redpanda-data:/var/lib/redpanda/data"]
     healthcheck:
       test: ["CMD-SHELL", "rpk cluster health --api-urls localhost:9644"]
       interval: 5s
@@ -41,6 +28,9 @@ services:
     environment:
       DATABASE_URL: postgresql://erpise_demo:${POSTGRES_PASSWORD:-demo-only-password}@postgres:5432/erpise_demo
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      DEMO_MODE: ${DEMO_MODE:-false}
+      DEMO_USER_EMAIL: ${DEMO_USER_EMAIL}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD}
     depends_on:
       postgres: {condition: service_healthy}
       redpanda: {condition: service_healthy}
@@ -56,5 +46,3 @@ services:
       postgres: {condition: service_healthy}
       redpanda: {condition: service_healthy}
     ports: ["8090:8090"]
-volumes:
-  redpanda-data:
