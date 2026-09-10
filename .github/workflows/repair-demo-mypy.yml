@@ -4,69 +4,60 @@ on:
   push:
     branches:
       - feature/evt-02-transactional-outbox
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   repair:
-    if: github.event.head_commit.message == 'ci: trigger guarded mypy repair on branch push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
           ref: feature/evt-02-transactional-outbox
           fetch-depth: 0
-
       - name: Apply guarded fetchall correction
         run: |
           python - <<'PY'
           from pathlib import Path
-
           path = Path("services/demo/backend/app.py")
           source = path.read_text()
-          expected = """                products = [
+          expected = '''                products = [
                     {
-                        \"id\": row[0],
-                        \"sku\": row[1],
-                        \"name\": row[2],
-                        \"price_cents\": row[3],
-                        \"available\": row[4],
+                        "id": row[0],
+                        "sku": row[1],
+                        "name": row[2],
+                        "price_cents": row[3],
+                        "available": row[4],
                     }
                     for row in cursor.fetchall()
                 ]
-"""
-          replacement = """                rows = cursor.fetchall()
+'''
+          replacement = '''                rows = cursor.fetchall()
                 products = [
                     {
-                        \"id\": row[0],
-                        \"sku\": row[1],
-                        \"name\": row[2],
-                        \"price_cents\": row[3],
-                        \"available\": row[4],
+                        "id": row[0],
+                        "sku": row[1],
+                        "name": row[2],
+                        "price_cents": row[3],
+                        "available": row[4],
                     }
                     for row in (rows or [])
                 ]
-"""
-          if source.count(expected) != 1:
-              raise SystemExit("Expected products fetchall pattern must occur exactly once")
-          if source.count("for row in cursor.fetchall()") != 1:
-              raise SystemExit("Unscoped fetchall iteration count is not exactly one")
+'''
+          if source.count(expected) != 1 or source.count("for row in cursor.fetchall()") != 1:
+              raise SystemExit("Expected fetchall pattern must occur exactly once")
           path.write_text(source.replace(expected, replacement))
           PY
           git diff --check
           git diff -- services/demo/backend/app.py
-
       - uses: astral-sh/setup-uv@v5
-
       - name: Run focused Python checks
         run: |
           uv sync --all-groups
           uv run ruff check services/demo/backend
           uv run mypy services/demo/backend/app.py
           uv run pytest services/demo/backend/test_app_contract.py
-
       - name: Commit verified correction and remove workflow
         run: |
           git config user.name "github-actions[bot]"
