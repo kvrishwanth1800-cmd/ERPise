@@ -36,8 +36,30 @@ jobs:
           version: 0.6.3
       - name: Sync Python workspace
         run: uv sync --all-groups
-      - name: Lint Python workspace
-        run: uv run ruff check services --output-format=github
+      - name: Lint integrated backend with Ruff
+        id: ruff
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          uv run ruff check services/demo/backend/integrated --output-format=github 2>&1 | tee ruff-output.log
+          status=${PIPESTATUS[0]}
+          {
+            echo "## Integrated backend Ruff"
+            echo '```text'
+            sed -n '1,80p' ruff-output.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+      - name: Upload Ruff output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruff-output
+          path: ruff-output.log
+          if-no-files-found: error
+      - name: Preserve Ruff exit code
+        if: steps.ruff.outcome == 'failure'
+        run: exit 1
       - name: Type-check Python workspace
         run: pnpm typecheck:python
       - name: Test Python workspace
