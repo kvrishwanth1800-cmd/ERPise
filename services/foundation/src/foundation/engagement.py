@@ -95,12 +95,21 @@ class EngagementService:
         trace_id: str,
     ) -> ConversationMessage:
         key = (scope.tenant_id, conversation_id)
-        if not message_id or message_id in self._messages or direction not in {"inbound", "outbound"}:
-            raise EngagementError("Message identity and direction are required.")
+        if not message_id or message_id in self._messages:
+            raise EngagementError("Message identity is required.")
+        if direction not in {"inbound", "outbound"}:
+            raise EngagementError("Message direction is invalid.")
         if sequence <= self._conversation_sequences.get(key, 0):
             raise EngagementError("Conversation messages must be strictly ordered.")
         message = ConversationMessage(
-            message_id, conversation_id, scope.tenant_id, direction, sequence, customer_id, order_id, body
+            message_id,
+            conversation_id,
+            scope.tenant_id,
+            direction,
+            sequence,
+            customer_id,
+            order_id,
+            body,
         )
         self._messages[message_id] = message
         self._conversation_sequences[key] = sequence
@@ -121,7 +130,15 @@ class EngagementService:
         if case_id in self._cases or priority not in {"low", "medium", "high", "urgent"}:
             raise EngagementError("Case identity and supported priority are required.")
         case = SupportCase(
-            case_id, scope.tenant_id, conversation_id, customer_id, order_id, None, priority, "open", target_sequence
+            case_id,
+            scope.tenant_id,
+            conversation_id,
+            customer_id,
+            order_id,
+            None,
+            priority,
+            "open",
+            target_sequence,
         )
         self._cases[case_id] = case
         self._emit(scope, case_id, "case.changed", trace_id)
@@ -176,11 +193,7 @@ class EngagementService:
         key = (scope.tenant_id, idempotency_key)
         if key in self._campaign_keys:
             return self._campaign_keys[key]
-        audience = tuple(
-            contact_id
-            for contact_id in contact_ids
-            if self._eligible(scope.tenant_id, contact_id)
-        )
+        audience = tuple(contact_id for contact_id in contact_ids if self._eligible(scope.tenant_id, contact_id))
         campaign = Campaign(campaign_id, scope.tenant_id, template_id, "draft", audience)
         self._campaigns[campaign_id] = campaign
         self._campaign_keys[key] = campaign
@@ -207,12 +220,24 @@ class EngagementService:
             authority_id,
         )
         self._campaigns[campaign_id] = updated
-        self._audit.record(authority_id, "engagement", "campaign", "publish", "consent", trace_id, campaign_id)
+        self._audit.record(
+            authority_id,
+            "engagement",
+            "campaign",
+            "publish",
+            "consent",
+            trace_id,
+            campaign_id,
+        )
         self._emit(scope, campaign_id, "campaign.published", trace_id)
         return updated
 
     def recover_open_cases(self, scope: ScopeContext) -> list[SupportCase]:
-        return [item for item in self._cases.values() if item.tenant_id == scope.tenant_id and item.status != "resolved"]
+        return [
+            item
+            for item in self._cases.values()
+            if item.tenant_id == scope.tenant_id and item.status != "resolved"
+        ]
 
     def _eligible(self, tenant_id: str, contact_id: str) -> bool:
         contact = self._contacts.get((tenant_id, contact_id))
