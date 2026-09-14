@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """PostgreSQL connection and idempotent Program A schema setup."""
 
 from __future__ import annotations

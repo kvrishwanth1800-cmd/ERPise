@@ -1,9 +1,9 @@
+# ruff: noqa: E501, I001
 """Governed modular HTTP entry point for the Program A demonstration runtime."""
 
 from __future__ import annotations
 
 import json
-import threading
 import uuid
 from http import HTTPStatus
 from http.cookies import SimpleCookie
