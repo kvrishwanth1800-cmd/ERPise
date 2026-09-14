@@ -8,6 +8,7 @@ from integrated import cases
 def test_create_persists_open_case_for_tenant() -> None:
     cursor = MagicMock()
     connection = MagicMock()
+    connection.__enter__.return_value = connection
     connection.cursor.return_value.__enter__.return_value = cursor
     with patch("integrated.cases.connect", return_value=connection):
         result = cases.create("tenant-a", "user-a", "Need help", "Details")
