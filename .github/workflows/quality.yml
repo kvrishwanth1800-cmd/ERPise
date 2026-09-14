@@ -23,7 +23,7 @@ jobs:
       - name: Sync Python workspace
         run: uv sync --all-groups
       - name: Type-check Python workspace
-        run: pnpm typecheck:python
+        run: uv run mypy services
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.5
