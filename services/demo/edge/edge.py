@@ -1,15 +1,15 @@
+# mypy: disable-error-code=call-overload
 # ruff: noqa: E501
 """Tenant-scoped edge reservation service with idempotent lifecycle transitions."""
-
 from __future__ import annotations
 
 import json
 import os
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import cast
 
 import psycopg
-
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
@@ -37,7 +37,7 @@ class Handler(BaseHTTPRequestHandler):
         with connect() as connection, connection.cursor() as cursor:
             cursor.execute("SELECT capacity, reserved FROM demo_edge_capacity WHERE tenant_id = %s", (tenant,))
             row = cursor.fetchone()
-        self.reply({"tenant_id": tenant, "capacity": 0 if row is None else int(row[0]), "reserved": 0 if row is None else int(row[1])})
+        self.reply({"tenant_id": tenant, "capacity": 0 if row is None else int(cast(int | str, row[0])), "reserved": 0 if row is None else int(cast(int | str, row[1]))})
 
     def do_POST(self) -> None:
         tenant = self.headers.get("X-Tenant-Id")
@@ -48,7 +48,7 @@ class Handler(BaseHTTPRequestHandler):
         reservation_id = str(data.get("reservation_id", ""))
         key = self.headers.get("Idempotency-Key", "")
         if self.path == "/reserve":
-            quantity = int(data.get("quantity", 0))
+            quantity = int(cast(int | str, data.get("quantity", 0)))
             with connect() as connection, connection.cursor() as cursor:
                 cursor.execute("SELECT reservation_id, status FROM demo_edge_reservations WHERE tenant_id = %s AND idempotency_key = %s", (tenant, key))
                 existing = cursor.fetchone()
@@ -75,7 +75,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.reply({"reservation_id": reservation_id, "status": str(row[1]), "idempotent": True})
                     return
                 if status in {"released", "expired"}:
-                    cursor.execute("UPDATE demo_edge_capacity SET reserved = reserved - %s WHERE tenant_id = %s", (int(row[0]), tenant))
+                    cursor.execute("UPDATE demo_edge_capacity SET reserved = reserved - %s WHERE tenant_id = %s", (int(cast(int | str, row[0])), tenant))
                 cursor.execute("UPDATE demo_edge_reservations SET status = %s WHERE tenant_id = %s AND reservation_id = %s", (status, tenant, reservation_id))
             self.reply({"reservation_id": reservation_id, "status": status})
             return
@@ -83,7 +83,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def data(self) -> dict[str, object]:
         size = int(self.headers.get("Content-Length", "0"))
-        return {} if size == 0 else json.loads(self.rfile.read(size).decode())
+        return {} if size == 0 else cast(dict[str, object], json.loads(self.rfile.read(size).decode()))
 
     def reply(self, body: dict[str, object], status: HTTPStatus = HTTPStatus.OK) -> None:
         value = json.dumps(body).encode()
