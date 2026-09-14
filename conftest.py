@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
 
-SERVICES_ROOT = Path(__file__).resolve().parent
+SERVICES_ROOT = Path(__file__).resolve().parent / "services"
 for path in (SERVICES_ROOT / "foundation" / "src", SERVICES_ROOT / "demo" / "backend"):
     sys.path.insert(0, str(path))
