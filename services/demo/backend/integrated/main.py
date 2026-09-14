@@ -13,13 +13,13 @@ from typing import Any, cast
 from foundation.access import AuthorizationDeniedError
 from foundation.organization import ScopeDeniedError
 
-from integrated import audit, catalog, customers, orders, reports, sessions
+from integrated import audit, catalog, customers, events, orders, projections, reports, sessions
 from integrated.auth import FoundationSessionAuthorizer
 from integrated.persistence import migrate
 
 
 AUTHORIZER = FoundationSessionAuthorizer()
-ACTIONS = {"/api/session": "session.read", "/api/products": "products.read", "/api/reports/sales": "reports.read", "/api/orders": "orders.read", "/api/consent": "consent.write"}
+ACTIONS = {"/api/session": "session.read", "/api/products": "products.read", "/api/reports/sales": "reports.read", "/api/orders": "orders.read", "/api/projections/orders": "orders.read", "/api/consent": "consent.write", "/api/events/replay": "orders.write"}
 
 
 class GovernedHandler(BaseHTTPRequestHandler):
@@ -38,6 +38,8 @@ class GovernedHandler(BaseHTTPRequestHandler):
             self.respond({"products": catalog.products(session["tenant_id"])})
         elif self.path == "/api/orders":
             self.respond({"orders": orders.list_orders(session["tenant_id"])})
+        elif self.path == "/api/projections/orders":
+            self.respond({"orders": projections.orders(session["tenant_id"])})
         elif self.path == "/api/reports/sales":
             self.respond(reports.sales(session["tenant_id"]))
         else:
@@ -63,6 +65,8 @@ class GovernedHandler(BaseHTTPRequestHandler):
                 result = orders.create(session["tenant_id"], str(payload.get("customer_id", "customer")), str(payload.get("product_id", "")), int(payload.get("quantity", 0)), str(payload.get("fulfillment_method", "pickup")), self.headers.get("Idempotency-Key", ""))
                 audit.record(session["tenant_id"], session["user_id"], "order.created", cast(str, result["order_id"]), self.trace_id())
                 self.respond(result, HTTPStatus.CREATED)
+            elif self.path == "/api/events/replay":
+                self.respond({"replayed": events.replay()})
             else:
                 self.respond({"error": "not_found"}, HTTPStatus.NOT_FOUND)
         except (TypeError, ValueError) as error:
@@ -130,4 +134,5 @@ class GovernedHandler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     migrate()
+    events.start_worker()
     ThreadingHTTPServer(("0.0.0.0", 8080), GovernedHandler).serve_forever()
