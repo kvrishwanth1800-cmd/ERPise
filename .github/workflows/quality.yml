@@ -19,29 +19,11 @@ jobs:
         with:
           version: 0.6.3
       - name: Lint integrated backend with Ruff
-        id: ruff
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          uvx ruff check services/demo/backend/integrated --output-format=github --diff 2>&1 | tee ruff-output.log
-          status=${PIPESTATUS[0]}
-          {
-            echo "## Integrated backend Ruff"
-            echo '```text'
-            sed -n '1,80p' ruff-output.log
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit "$status"
-      - name: Upload Ruff output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ruff-output
-          path: ruff-output.log
-          if-no-files-found: error
-      - name: Preserve Ruff exit code
-        if: steps.ruff.outcome == 'failure'
-        run: exit 1
+        run: uvx ruff check services/demo/backend/integrated --output-format=github
+      - name: Sync Python workspace
+        run: uv sync --all-groups
+      - name: Type-check Python workspace
+        run: pnpm typecheck:python
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.5
@@ -58,32 +40,6 @@ jobs:
         run: pnpm typecheck
       - name: Test TypeScript workspace
         run: pnpm test
-      - name: Sync Python workspace
-        run: uv sync --all-groups
-      - name: Type-check Python workspace
-        id: mypy
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          pnpm typecheck:python 2>&1 | tee mypy-output.log
-          status=${PIPESTATUS[0]}
-          {
-            echo "## Python type-check"
-            echo '```text'
-            sed -n '1,120p' mypy-output.log
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit "$status"
-      - name: Upload MyPy output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mypy-output
-          path: mypy-output.log
-          if-no-files-found: error
-      - name: Preserve MyPy exit code
-        if: steps.mypy.outcome == 'failure'
-        run: exit 1
       - name: Test Python workspace
         run: uv run pytest services
       - uses: dtolnay/rust-toolchain@1.85.0
