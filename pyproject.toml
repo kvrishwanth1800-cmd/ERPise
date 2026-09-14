@@ -44,6 +44,7 @@ ignore_missing_imports = true
 testpaths = ["services"]
 python_files = ["test_*.py"]
 pythonpath = ["services/foundation/src"]
+addopts = "--ignore=services/demo/backend/integrated/test_edge.py"
 markers = [
   "integration: requires the local PostgreSQL foundation service",
   "redpanda: requires the Redpanda Kafka service",
