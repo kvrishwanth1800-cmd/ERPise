@@ -64,11 +64,21 @@ jobs:
         id: pytest_workspace
         run: |
           set +e
-          uv run pytest services -vv --tb=long > pytest-output.log 2>&1
-          PYTEST_EXIT=$?
-          cat pytest-output.log
-          echo "pytest_exit=$PYTEST_EXIT" >> "$GITHUB_OUTPUT"
-          exit $PYTEST_EXIT
+          uv run pytest services -vv --tb=long --maxfail=1 2>&1 | tee pytest-output.log
+          PYTEST_EXIT=${PIPESTATUS[0]}
+          echo "===== FIRST 200 LINES ====="
+          head -n 200 pytest-output.log
+          echo "===== LAST 200 LINES ====="
+          tail -n 200 pytest-output.log
+          echo "===== ERRORS ====="
+          grep -n -A 30 -B 10 -E "ERROR|FAILED|ImportError|ModuleNotFoundError|SyntaxError|INTERNALERROR" pytest-output.log || true
+          {
+          echo "## Pytest diagnostic"
+          echo '```text'
+          grep -A 40 -B 10 -m 1 -E "ERROR|FAILED|ImportError|ModuleNotFoundError|SyntaxError|INTERNALERROR" pytest-output.log || tail -n 150 pytest-output.log
+          echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$PYTEST_EXIT"
       - name: Upload pytest workspace output
         if: always()
         uses: actions/upload-artifact@v4
