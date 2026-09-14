@@ -14,11 +14,11 @@ EDGE_SERVICE_KEY = os.environ.get("EDGE_SERVICE_KEY", "demo-edge-service-key")
 
 def request(path: str, tenant_id: str, payload: dict[str, object] | None = None, idempotency_key: str = "") -> dict[str, Any]:
     data = None if payload is None else json.dumps(payload).encode()
-    headers = {"X-Tenant-Id": tenant_id, "X-Edge-Service-Key": EDGE_SERVICE_KEY}
+    headers = {"X-tenant-id": tenant_id, "X-edge-service-key": EDGE_SERVICE_KEY}
     if data is not None:
         headers["Content-Type"] = "application/json"
     if idempotency_key:
-        headers["Idempotency-Key"] = idempotency_key
+        headers["Idempotency-key"] = idempotency_key
     method = "GET" if data is None else "POST"
     try:
         with urlopen(Request(f"{EDGE_URL}{path}", data=data, headers=headers, method=method), timeout=3) as response:
