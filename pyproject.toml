@@ -43,8 +43,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["services"]
 python_files = ["test_*.py"]
-pythonpath = ["services/foundation/src"]
-addopts = "--ignore=services/demo/backend/integrated/test_edge.py"
+pythonpath = ["services/foundation/src", "services/demo/backend"]
 markers = [
   "integration: requires the local PostgreSQL foundation service",
   "redpanda: requires the Redpanda Kafka service",
