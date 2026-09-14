@@ -22,6 +22,18 @@ jobs:
         run: uvx ruff check services/demo/backend/integrated --output-format=github
       - name: Sync Python workspace
         run: uv sync --all-groups
+      - name: Test Python workspace
+        run: |
+          set -o pipefail
+          uv run pytest services -x -vv --tb=short 2>&1 | tee pytest-output.log
+          exit ${PIPESTATUS[0]}
+      - name: Upload pytest workspace output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-output
+          path: pytest-output.log
+          if-no-files-found: error
       - name: Type-check integrated backend
         id: integrated_mypy
         continue-on-error: true
@@ -60,32 +72,6 @@ jobs:
         run: pnpm typecheck
       - name: Test TypeScript workspace
         run: pnpm test
-      - name: Test Python workspace
-        id: pytest_workspace
-        run: |
-          set +e
-          uv run pytest services -vv --tb=long --maxfail=1 2>&1 | tee pytest-output.log
-          PYTEST_EXIT=${PIPESTATUS[0]}
-          echo "===== FIRST 200 LINES ====="
-          head -n 200 pytest-output.log
-          echo "===== LAST 200 LINES ====="
-          tail -n 200 pytest-output.log
-          echo "===== ERRORS ====="
-          grep -n -A 30 -B 10 -E "ERROR|FAILED|ImportError|ModuleNotFoundError|SyntaxError|INTERNALERROR" pytest-output.log || true
-          {
-          echo "## Pytest diagnostic"
-          echo '```text'
-          grep -A 40 -B 10 -m 1 -E "ERROR|FAILED|ImportError|ModuleNotFoundError|SyntaxError|INTERNALERROR" pytest-output.log || tail -n 150 pytest-output.log
-          echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit "$PYTEST_EXIT"
-      - name: Upload pytest workspace output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-output
-          path: pytest-output.log
-          if-no-files-found: error
       - uses: dtolnay/rust-toolchain@1.85.0
         with:
           components: rustfmt, clippy
