@@ -1,4 +1,4 @@
-# ruff: noqa: E501, I001
+# ruff: noqa: E501, E701, E702, I001
 """Governed modular HTTP entry point for the Program A demonstration runtime."""
 from __future__ import annotations
 import json

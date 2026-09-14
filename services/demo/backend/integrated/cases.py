@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Durable tenant-scoped support case lifecycle adapter."""
 from __future__ import annotations
 

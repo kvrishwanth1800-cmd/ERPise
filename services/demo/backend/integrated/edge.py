@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Authenticated backend client for the internal edge reservation service."""
 from __future__ import annotations
 
