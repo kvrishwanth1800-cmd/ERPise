@@ -29,6 +29,9 @@ jobs:
           set -o pipefail
           uv run mypy services/demo/backend/integrated 2>&1 | tee integrated-mypy-output.log
           exit ${PIPESTATUS[0]}
+      - name: Print integrated MyPy output
+        if: always()
+        run: cat integrated-mypy-output.log
       - name: Upload integrated MyPy output
         if: always()
         uses: actions/upload-artifact@v4
