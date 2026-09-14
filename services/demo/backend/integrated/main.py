@@ -8,7 +8,7 @@ import uuid
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, cast
 
 from foundation.access import AuthorizationDeniedError
 from foundation.organization import ScopeDeniedError
@@ -19,13 +19,7 @@ from integrated.persistence import migrate
 
 
 AUTHORIZER = FoundationSessionAuthorizer()
-ACTIONS = {
-    "/api/session": "session.read",
-    "/api/products": "products.read",
-    "/api/reports/sales": "reports.read",
-    "/api/orders": "orders.read",
-    "/api/consent": "consent.write",
-}
+ACTIONS = {"/api/session": "session.read", "/api/products": "products.read", "/api/reports/sales": "reports.read", "/api/orders": "orders.read", "/api/consent": "consent.write"}
 
 
 class GovernedHandler(BaseHTTPRequestHandler):
@@ -62,15 +56,12 @@ class GovernedHandler(BaseHTTPRequestHandler):
         try:
             if self.path == "/api/consent":
                 result = customers.grant_consent(session["tenant_id"], str(self.payload().get("customer_id", "customer")))
-                audit.record(session["tenant_id"], session["user_id"], "consent.granted", result["customer_id"], self.trace_id())
+                audit.record(session["tenant_id"], session["user_id"], "consent.granted", cast(str, result["customer_id"]), self.trace_id())
                 self.respond(result)
             elif self.path == "/api/orders":
                 payload = self.payload()
-                result = orders.create(session["tenant_id"], str(payload.get("customer_id", "customer")),
-                                       str(payload.get("product_id", "")), int(payload.get("quantity", 0)),
-                                       str(payload.get("fulfillment_method", "pickup")),
-                                       self.headers.get("Idempotency-Key", ""))
-                audit.record(session["tenant_id"], session["user_id"], "order.created", result["order_id"], self.trace_id())
+                result = orders.create(session["tenant_id"], str(payload.get("customer_id", "customer")), str(payload.get("product_id", "")), int(payload.get("quantity", 0)), str(payload.get("fulfillment_method", "pickup")), self.headers.get("Idempotency-Key", ""))
+                audit.record(session["tenant_id"], session["user_id"], "order.created", cast(str, result["order_id"]), self.trace_id())
                 self.respond(result, HTTPStatus.CREATED)
             else:
                 self.respond({"error": "not_found"}, HTTPStatus.NOT_FOUND)
@@ -83,8 +74,7 @@ class GovernedHandler(BaseHTTPRequestHandler):
             self.respond({"error": "invalid_credentials"}, HTTPStatus.UNAUTHORIZED)
             return
         session = sessions.create()
-        self.respond({"tenant": session["tenant_id"], "user": session["user_id"], "role": session["role"]},
-                     headers={"Set-Cookie": f"erpise_session={session['session_id']}; HttpOnly; SameSite=Strict; Path=/"})
+        self.respond({"tenant": session["tenant_id"], "user": session["user_id"], "role": session["role"]}, headers={"Set-Cookie": f"erpise_session={session['session_id']}; HttpOnly; SameSite=Strict; Path=/"})
 
     def logout(self) -> None:
         session = self.session()
@@ -98,9 +88,7 @@ class GovernedHandler(BaseHTTPRequestHandler):
         if session is None:
             self.respond({"error": "authentication_required"}, HTTPStatus.UNAUTHORIZED)
             return None
-        action = ACTIONS.get(self.path)
-        if self.path == "/api/orders" and self.command == "POST":
-            action = "orders.write"
+        action = "orders.write" if self.path == "/api/orders" and self.command == "POST" else ACTIONS.get(self.path)
         if action is None:
             self.respond({"error": "not_found"}, HTTPStatus.NOT_FOUND)
             return None
@@ -126,8 +114,7 @@ class GovernedHandler(BaseHTTPRequestHandler):
     def trace_id(self) -> str:
         return self.headers.get("Trace-Id", str(uuid.uuid4()))
 
-    def respond(self, body: dict[str, Any], status: HTTPStatus = HTTPStatus.OK,
-                headers: dict[str, str] | None = None) -> None:
+    def respond(self, body: dict[str, Any], status: HTTPStatus = HTTPStatus.OK, headers: dict[str, str] | None = None) -> None:
         encoded = json.dumps(body).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")

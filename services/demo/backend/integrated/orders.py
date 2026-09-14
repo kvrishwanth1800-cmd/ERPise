@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from typing import cast
 
 from integrated.persistence import connect
 
@@ -25,7 +26,7 @@ def create(tenant_id: str, customer_id: str, product_id: str, quantity: int, met
             raise ValueError("inventory_unavailable")
         order_id, payment_id, event_id = (f"order-{uuid.uuid4()}", f"payment-{uuid.uuid4()}", str(uuid.uuid4()))
         cursor.execute("INSERT INTO demo_orders (tenant_id, order_id, customer_id, product_id, quantity, payment_id, fulfillment_status, idempotency_key) VALUES (%s, %s, %s, %s, %s, %s, 'reserved', %s)", (tenant_id, order_id, customer_id, product_id, quantity, payment_id, idempotency_key))
-        payload = json.dumps({"order_id": order_id, "payment_id": payment_id, "fulfillment_status": "reserved", "product_id": product_id, "quantity": quantity, "price_cents": int(product[0]), "method": method})
+        payload = json.dumps({"order_id": order_id, "payment_id": payment_id, "fulfillment_status": "reserved", "product_id": product_id, "quantity": quantity, "price_cents": cast(int, product[0]), "method": method})
         cursor.execute("INSERT INTO demo_outbox (event_id, tenant_id, event_type, payload) VALUES (%s, %s, 'order.created.v1', %s::jsonb)", (event_id, tenant_id, payload))
     return {"order_id": order_id, "payment_id": payment_id, "fulfillment_status": "reserved", "idempotent": False}
 
