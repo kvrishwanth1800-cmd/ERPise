@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Tenant-scoped edge reservation service with idempotent lifecycle transitions."""
 
 from __future__ import annotations
@@ -61,15 +62,16 @@ class Handler(BaseHTTPRequestHandler):
                 cursor.execute("INSERT INTO demo_edge_reservations (tenant_id, reservation_id, idempotency_key, quantity, status, expires_at) VALUES (%s, %s, %s, %s, 'reserved', now() + interval '5 minutes')", (tenant, reservation_id, key, quantity))
             self.reply({"reservation_id": reservation_id, "status": "reserved"}, HTTPStatus.CREATED)
             return
-        if self.path in {"/confirm", "/release", "/expire"}:
-            status = self.path[1:] + "d" if self.path != "/expire" else "expired"
+        statuses = {"/confirm": "confirmed", "/release": "released", "/expire": "expired"}
+        if self.path in statuses:
+            status = statuses[self.path]
             with connect() as connection, connection.cursor() as cursor:
                 cursor.execute("SELECT quantity, status FROM demo_edge_reservations WHERE tenant_id = %s AND reservation_id = %s FOR UPDATE", (tenant, reservation_id))
                 row = cursor.fetchone()
                 if row is None:
                     self.reply({"error": "not_found"}, HTTPStatus.NOT_FOUND)
                     return
-                if str(row[1]) in {"released", "expired"}:
+                if str(row[1]) == status or str(row[1]) in {"released", "expired"}:
                     self.reply({"reservation_id": reservation_id, "status": str(row[1]), "idempotent": True})
                     return
                 if status in {"released", "expired"}:
