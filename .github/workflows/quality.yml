@@ -61,7 +61,21 @@ jobs:
       - name: Test TypeScript workspace
         run: pnpm test
       - name: Test Python workspace
-        run: uv run pytest services
+        id: pytest_workspace
+        run: |
+          set +e
+          uv run pytest services -vv --tb=long > pytest-output.log 2>&1
+          PYTEST_EXIT=$?
+          cat pytest-output.log
+          echo "pytest_exit=$PYTEST_EXIT" >> "$GITHUB_OUTPUT"
+          exit $PYTEST_EXIT
+      - name: Upload pytest workspace output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-output
+          path: pytest-output.log
+          if-no-files-found: error
       - uses: dtolnay/rust-toolchain@1.85.0
         with:
           components: rustfmt, clippy
