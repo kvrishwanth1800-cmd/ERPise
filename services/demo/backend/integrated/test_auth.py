@@ -1,7 +1,5 @@
 """Focused authorization coverage for the governed demonstration boundary."""
 
-from __future__ import annotations
-
 from unittest import TestCase
 
 from foundation.access import AuthorizationDeniedError
