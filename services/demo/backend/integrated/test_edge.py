@@ -1,4 +1,4 @@
-from services.demo.backend.integrated import edge
+from integrated import edge
 
 
 def test_reserve_and_transition_delegate_to_edge_request(monkeypatch):
