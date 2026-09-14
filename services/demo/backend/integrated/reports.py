@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Tenant-scoped sales reporting adapter."""
 
 from __future__ import annotations

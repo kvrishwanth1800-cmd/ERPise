@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Tenant-scoped catalog and pricing read adapter."""
 
 from __future__ import annotations
