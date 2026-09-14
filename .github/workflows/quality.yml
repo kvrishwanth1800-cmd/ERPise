@@ -22,6 +22,23 @@ jobs:
         run: uvx ruff check services/demo/backend/integrated --output-format=github
       - name: Sync Python workspace
         run: uv sync --all-groups
+      - name: Type-check integrated backend
+        id: integrated_mypy
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          uv run mypy services/demo/backend/integrated 2>&1 | tee integrated-mypy-output.log
+          exit ${PIPESTATUS[0]}
+      - name: Upload integrated MyPy output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integrated-mypy-output
+          path: integrated-mypy-output.log
+          if-no-files-found: error
+      - name: Preserve integrated MyPy exit code
+        if: steps.integrated_mypy.outcome == 'failure'
+        run: exit 1
       - name: Type-check Python workspace
         run: uv run mypy services
       - uses: pnpm/action-setup@v4
