@@ -15,6 +15,8 @@ jobs:
       - name: Wait for required services
         run: docker compose --env-file .env.demo -f docker-compose.demo.yml up --detach --wait --wait-timeout 180
       - run: sh scripts/demo-smoke.sh
+      - name: Run complete connection regression
+        run: sh scripts/connection-regression.sh
       - if: failure()
         run: |
           docker compose --env-file .env.demo -f docker-compose.demo.yml ps
