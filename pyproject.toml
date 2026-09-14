@@ -30,12 +30,6 @@ select = ["E", "F", "I", "UP"]
 "services/foundation/tests/test_redpanda_outbox.py" = ["E501"]
 "services/foundation/tests/test_payment.py" = ["E501"]
 "services/foundation/tests/test_payment_persistence.py" = ["E501"]
-"services/foundation/src/foundation/communications.py" = ["E501"]
-"services/foundation/src/foundation/communications_store.py" = ["E501"]
-"services/foundation/tests/test_communications.py" = ["E501", "I001"]
-"services/foundation/tests/test_communications_store.py" = ["I001"]
-"services/foundation/src/foundation/engagement.py" = ["E501"]
-"services/foundation/tests/test_engagement.py" = ["E501", "I001"]
 
 [tool.mypy]
 strict = true
@@ -48,7 +42,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["services"]
 python_files = ["test_*.py"]
-pythonpath = ["services/foundation/src"]
+pythonpath = ["services/foundation/src", "services/demo/backend"]
 markers = [
   "integration: requires the local PostgreSQL foundation service",
   "redpanda: requires the Redpanda Kafka service",
