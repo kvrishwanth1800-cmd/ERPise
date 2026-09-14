@@ -7,7 +7,7 @@ import json
 import os
 import threading
 import time
-from typing import Any
+from typing import Any, cast
 
 from kafka import KafkaConsumer, KafkaProducer
 
@@ -61,7 +61,8 @@ def replay() -> int:
         cursor.execute("DELETE FROM demo_processed_events")
         cursor.execute("SELECT event_id, tenant_id, payload FROM demo_outbox ORDER BY created_at")
         rows = cursor.fetchall()
-        for event_id, tenant_id, payload in rows:
+        for event_id, tenant_id, raw_payload in rows:
+            payload = cast(dict[str, object], raw_payload)
             cursor.execute("INSERT INTO demo_processed_events (event_id) VALUES (%s)", (event_id,))
             cursor.execute("INSERT INTO demo_event_projection (tenant_id, order_id, fulfillment_status, event_id) VALUES (%s, %s, %s, %s)", (tenant_id, payload["order_id"], payload["fulfillment_status"], event_id))
     return len(rows)
