@@ -1,3 +1,4 @@
+# ruff: noqa: E501, I001
 """Durable Redpanda publisher and replay-safe order projection consumer."""
 
 from __future__ import annotations

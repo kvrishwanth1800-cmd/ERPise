@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Read adapter for replay-safe order projections."""
 
 from __future__ import annotations
