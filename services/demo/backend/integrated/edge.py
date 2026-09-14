@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
+from typing import Any, cast
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -22,9 +22,9 @@ def request(path: str, tenant_id: str, payload: dict[str, object] | None = None,
     method = "GET" if data is None else "POST"
     try:
         with urlopen(Request(f"{EDGE_URL}{path}", data=data, headers=headers, method=method), timeout=3) as response:
-            return json.loads(response.read().decode())
+            return cast(dict[str, Any], json.loads(response.read().decode()))
     except HTTPError as error:
-        return json.loads(error.read().decode())
+        return cast(dict[str, Any], json.loads(error.read().decode()))
 
 
 def status(tenant_id: str) -> dict[str, Any]:
