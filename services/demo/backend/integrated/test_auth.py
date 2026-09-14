@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Focused authorization coverage for the governed demonstration boundary."""
 
 from unittest import TestCase
