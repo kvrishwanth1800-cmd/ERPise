@@ -30,9 +30,6 @@ services:
     environment:
       DATABASE_URL: postgresql://erpise_demo:${POSTGRES_PASSWORD:-demo-only-password}@postgres:5432/erpise_demo
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
-      DEMO_MODE: ${DEMO_MODE:-false}
-      DEMO_USER_EMAIL: ${DEMO_USER_EMAIL}
-      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD}
     depends_on:
       postgres: {condition: service_healthy}
       redpanda: {condition: service_healthy}
@@ -43,8 +40,11 @@ services:
       backend: {condition: service_healthy}
     ports: ["3000:80"]
   edge:
-    build: ./services/demo/edge
+    build:
+      context: .
+      dockerfile: services/demo/edge/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://erpise_demo:${POSTGRES_PASSWORD:-demo-only-password}@postgres:5432/erpise_demo
     depends_on:
       postgres: {condition: service_healthy}
-      redpanda: {condition: service_healthy}
     ports: ["8090:8090"]
