@@ -40,7 +40,7 @@ select = ["E", "F", "I", "UP"]
 [tool.mypy]
 strict = true
 files = ["services"]
-mypy_path = ["services/foundation/src"]
+mypy_path = ["services/foundation/src", "services/demo/backend"]
 [[tool.mypy.overrides]]
 module = ["kafka", "kafka.*"]
 ignore_missing_imports = true
