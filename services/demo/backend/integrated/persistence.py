@@ -9,12 +9,9 @@ from pathlib import Path
 import psycopg
 
 
-DATABASE_URL = os.environ["DATABASE_URL"]
-
-
 def connect() -> psycopg.Connection[tuple[object, ...]]:
     """Open a connection to the demonstration PostgreSQL database."""
-    return psycopg.connect(DATABASE_URL)
+    return psycopg.connect(os.environ["DATABASE_URL"])
 
 
 def migrate() -> None:

@@ -22,18 +22,10 @@ jobs:
         run: uvx ruff check services/demo/backend/integrated --output-format=github
       - name: Sync Python workspace
         run: uv sync --all-groups
+      - name: Test affected Python case
+        run: uv run pytest services/demo/backend/integrated/test_cases.py -vv --tb=short
       - name: Test Python workspace
-        run: |
-          set -o pipefail
-          uv run pytest services -x -vv --tb=short 2>&1 | tee pytest-output.log
-          exit ${PIPESTATUS[0]}
-      - name: Upload pytest workspace output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-output
-          path: pytest-output.log
-          if-no-files-found: error
+        run: uv run pytest services
       - name: Type-check integrated backend
         id: integrated_mypy
         continue-on-error: true
