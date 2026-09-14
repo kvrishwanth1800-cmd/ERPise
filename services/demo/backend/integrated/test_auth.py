@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
+from unittest import TestCase
 
 from foundation.access import AuthorizationDeniedError
 from foundation.organization import ScopeDeniedError
@@ -20,38 +20,38 @@ def demo_session() -> dict[str, str]:
     }
 
 
-def test_authorizes_granted_tenant_scoped_action() -> None:
-    authorizer = FoundationSessionAuthorizer()
+class FoundationSessionAuthorizerTest(TestCase):
+    """Verifies authorization decisions at the governed runtime boundary."""
 
-    scope = authorizer.authorize(demo_session(), "orders.write")
+    def test_authorizes_granted_tenant_scoped_action(self) -> None:
+        authorizer = FoundationSessionAuthorizer()
 
-    assert scope.tenant_id == IDENTITY.tenant_id
-    assert scope.is_tenant_administrator is True
+        scope = authorizer.authorize(demo_session(), "orders.write")
 
+        self.assertEqual(scope.tenant_id, IDENTITY.tenant_id)
+        self.assertTrue(scope.is_tenant_administrator)
 
-def test_denies_cross_tenant_session() -> None:
-    authorizer = FoundationSessionAuthorizer()
-    session = demo_session()
-    session["tenant_id"] = "other-tenant"
+    def test_denies_cross_tenant_session(self) -> None:
+        authorizer = FoundationSessionAuthorizer()
+        session = demo_session()
+        session["tenant_id"] = "other-tenant"
 
-    with pytest.raises(ScopeDeniedError):
-        authorizer.authorize(session, "orders.read")
+        with self.assertRaises(ScopeDeniedError):
+            authorizer.authorize(session, "orders.read")
 
+    def test_denies_unrecognized_role(self) -> None:
+        authorizer = FoundationSessionAuthorizer()
+        session = demo_session()
+        session["role"] = "viewer"
 
-def test_denies_unrecognized_role() -> None:
-    authorizer = FoundationSessionAuthorizer()
-    session = demo_session()
-    session["role"] = "viewer"
+        with self.assertRaises(AuthorizationDeniedError):
+            authorizer.authorize(session, "orders.read")
 
-    with pytest.raises(AuthorizationDeniedError):
-        authorizer.authorize(session, "orders.read")
+    def test_denies_session_after_revocation(self) -> None:
+        authorizer = FoundationSessionAuthorizer()
+        session = demo_session()
 
+        authorizer.revoke(session)
 
-def test_denies_session_after_revocation() -> None:
-    authorizer = FoundationSessionAuthorizer()
-    session = demo_session()
-
-    authorizer.revoke(session)
-
-    with pytest.raises(AuthorizationDeniedError):
-        authorizer.authorize(session, "orders.read")
+        with self.assertRaises(AuthorizationDeniedError):
+            authorizer.authorize(session, "orders.read")
