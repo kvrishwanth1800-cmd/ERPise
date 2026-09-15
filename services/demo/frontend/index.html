@@ -3,209 +3,55 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ERPise Program A</title>
+  <title>ERPise | Operations workspace</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 58rem; }
-    fieldset, section { margin: 1rem 0; padding: 1rem; }
-    button, input, select, textarea { font: inherit; margin: .25rem; }
-    #app { display: none; }
-    .error { color: #a00; }
-    .success { color: #063; }
-    pre { white-space: pre-wrap; }
+    :root { --ink:#17233b; --muted:#68758d; --line:#e4e9f1; --nav:#14213a; --brand:#3467eb; --brand-soft:#eaf0ff; --surface:#fff; --ground:#f5f7fb; --good:#16876a; --warn:#b66a11; --shadow:0 12px 32px rgba(23,35,59,.08); }
+    * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--ground); font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    button,input,select,textarea { font:inherit; } button { cursor:pointer; border:0; border-radius:7px; padding:9px 13px; font-weight:650; color:#fff; background:var(--brand); } button:hover { background:#2556d4; } button.secondary { color:var(--ink); background:#fff; border:1px solid var(--line); } button.secondary:hover { background:#f8faff; } button.ghost { color:#ccdaff; background:transparent; padding:7px 10px; }
+    .login-shell { min-height:100vh; display:grid; grid-template-columns:1.15fr .85fr; background:#fff; } .login-aside { padding:64px clamp(28px,7vw,110px); background:linear-gradient(150deg,#102044,#2857c8); color:#fff; } .brand { display:flex; gap:10px; align-items:center; font-size:20px; font-weight:750; letter-spacing:-.4px; } .mark { width:31px; height:31px; display:grid; place-items:center; border-radius:8px; background:#fff; color:#2857c8; font-weight:850; } .login-aside h1 { max-width:490px; margin:100px 0 16px; font-size:44px; line-height:1.08; letter-spacing:-1.5px; } .login-aside p { max-width:440px; color:#d7e2ff; font-size:17px; } .feature-list { margin-top:38px; display:grid; gap:15px; color:#e7edff; } .feature-list span { color:#90b1ff; font-weight:700; margin-right:10px; }
+    .login-panel { display:grid; place-items:center; padding:32px; } .auth-card { width:min(410px,100%); } .eyebrow { color:var(--brand); font-size:12px; letter-spacing:.1em; text-transform:uppercase; font-weight:750; } .auth-card h2 { margin:10px 0 8px; font-size:29px; letter-spacing:-.7px; } .auth-card p { color:var(--muted); margin:0 0 25px; } label { display:grid; gap:6px; margin:14px 0; font-size:13px; font-weight:650; } input,select,textarea { width:100%; padding:10px 11px; border:1px solid #ccd5e3; border-radius:7px; color:var(--ink); background:#fff; } input:focus,select:focus,textarea:focus { outline:3px solid #dce7ff; border-color:var(--brand); } .auth-card button { width:100%; margin-top:8px; } .demo-note { margin-top:22px; padding:12px; border-radius:8px; color:#516078; background:#f1f5fc; font-size:12px; }
+    #workspace { display:none; min-height:100vh; } .sidebar { position:fixed; inset:0 auto 0 0; width:232px; padding:22px 14px; color:#c3cde3; background:var(--nav); } .sidebar .brand { color:#fff; padding:0 8px; } .sidebar .mark { background:#4d78ee; color:#fff; } .tenant { margin:32px 8px 16px; padding:11px; border:1px solid rgba(255,255,255,.12); border-radius:8px; font-size:12px; } .tenant strong { color:#fff; display:block; font-size:13px; } .nav-label { margin:25px 10px 7px; color:#8190ae; font-size:10px; letter-spacing:.12em; font-weight:700; } .nav-item { display:flex; gap:11px; align-items:center; width:100%; padding:10px; border-radius:7px; color:#c7d2ea; background:transparent; text-align:left; } .nav-item.active { color:#fff; background:#294878; } .nav-item:hover { background:#203b66; } .nav-dot { width:8px; height:8px; border-radius:50%; background:#7ba0ff; } .sidebar-bottom { position:absolute; bottom:20px; left:22px; right:22px; color:#8998b5; font-size:12px; }
+    .main { margin-left:232px; } .topbar { height:70px; display:flex; align-items:center; justify-content:space-between; padding:0 34px; border-bottom:1px solid var(--line); background:#fff; } .breadcrumb { color:var(--muted); } .breadcrumb b { color:var(--ink); } .user { display:flex; align-items:center; gap:10px; } .avatar { width:31px; height:31px; display:grid; place-items:center; border-radius:50%; color:#fff; background:#4f70c8; font-size:12px; font-weight:700; } .canvas { max-width:1420px; margin:auto; padding:30px 34px 44px; } .page-head { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:25px; } .page-head h1 { margin:0; font-size:28px; letter-spacing:-.8px; } .page-head p { margin:5px 0 0; color:var(--muted); } .live { display:flex; align-items:center; gap:7px; color:var(--good); font-size:12px; font-weight:700; } .live i { width:7px; height:7px; border-radius:50%; background:var(--good); }
+    .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:18px; } .metric,.card { background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); } .metric { padding:17px; } .metric label { margin:0; color:var(--muted); font-size:12px; font-weight:600; } .metric strong { display:block; margin:4px 0; font-size:24px; letter-spacing:-.7px; } .metric span { color:var(--good); font-size:12px; font-weight:650; } .grid { display:grid; grid-template-columns:1.15fr .85fr; gap:18px; } .card { padding:20px; } .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:17px; } .card h2 { margin:0; font-size:16px; letter-spacing:-.25px; } .card-head p { color:var(--muted); margin:3px 0 0; font-size:12px; } .pill { padding:4px 8px; border-radius:99px; color:#176b58; background:#e3f6ef; font-size:11px; font-weight:700; } .order-form { display:grid; grid-template-columns:1.3fr .65fr 1fr auto; gap:10px; align-items:end; } .order-form label { margin:0; } .order-form button { height:40px; }
+    table { width:100%; border-collapse:collapse; } th { color:#78859a; font-size:11px; letter-spacing:.04em; text-transform:uppercase; text-align:left; } th,td { padding:11px 7px; border-bottom:1px solid #edf0f5; } td { font-size:13px; } .status { display:inline-block; padding:4px 7px; border-radius:99px; color:#1a715c; background:#e6f7f1; font-size:11px; font-weight:700; } .empty { color:var(--muted); text-align:center; padding:24px; } .split { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px; } .action-row { display:flex; flex-wrap:wrap; gap:8px; } .detail { margin-top:12px; padding:11px; min-height:50px; border-radius:7px; color:#59667b; background:#f6f8fc; font-size:12px; white-space:pre-wrap; } .support-form { display:grid; gap:9px; } textarea { min-height:58px; resize:vertical; } .footer-note { margin-top:22px; color:#7f8ba0; font-size:12px; } .toast { position:fixed; right:25px; bottom:25px; z-index:4; display:none; max-width:360px; padding:13px 15px; border-radius:8px; color:#fff; background:#17345f; box-shadow:var(--shadow); } .toast.error { background:#a93535; } .toast.show { display:block; }
+    @media(max-width:980px){ .login-shell{grid-template-columns:1fr}.login-aside{display:none}.sidebar{width:64px;padding:18px 8px}.sidebar .brand span,.tenant,.nav-label,.nav-item span,.sidebar-bottom{display:none}.sidebar .brand{justify-content:center;padding:0}.nav-item{justify-content:center}.main{margin-left:64px}.metrics{grid-template-columns:repeat(2,1fr)}.grid,.split{grid-template-columns:1fr}.order-form{grid-template-columns:1fr 1fr}.canvas{padding:24px 18px}.topbar{padding:0 18px} }
   </style>
 </head>
 <body>
-  <main>
-    <h1>ERPise Program A</h1>
-    <form id="login">
-      <fieldset>
-        <legend>Demo sign in</legend>
-        <input id="email" type="email" value="demo@erpise.local" aria-label="Email">
-        <input id="password" type="password" value="demo-only-password" aria-label="Password">
-        <button type="submit">Sign in</button>
-      </fieldset>
-    </form>
-    <p id="status" role="status"></p>
-
-    <div id="app">
-      <p id="context"></p>
-      <button id="logout" type="button">Sign out</button>
-
-      <section>
-        <h2>Catalog and order</h2>
-        <div id="products"></div>
-        <button id="consent" type="button">Record customer consent</button>
-        <form id="checkout">
-          <select id="product" aria-label="Product"></select>
-          <input id="quantity" type="number" min="1" value="1" aria-label="Quantity">
-          <select id="method" aria-label="Fulfillment method">
-            <option value="pickup">Pickup</option>
-            <option value="delivery">Delivery</option>
-          </select>
-          <button type="submit">Create order</button>
-        </form>
-        <pre id="checkout-result"></pre>
-      </section>
-
-      <section>
-        <h2>Reporting and reconciliation</h2>
-        <button id="refresh" type="button">Refresh reporting and projection</button>
-        <button id="replay" type="button">Replay projection</button>
-        <pre id="orders"></pre>
-      </section>
-
-      <section>
-        <h2>Support lifecycle</h2>
-        <form id="support">
-          <input id="subject" value="Customer support request" aria-label="Subject">
-          <textarea id="details" aria-label="Details">Program A demo support request</textarea>
-          <button type="submit">Create, assign, escalate, and resolve case</button>
-        </form>
-        <pre id="case-result"></pre>
-      </section>
-
-      <section>
-        <h2>Governed edge reservation</h2>
-        <button id="edge" type="button">Reserve, confirm, release, and check capacity</button>
-        <pre id="edge-result"></pre>
-      </section>
-    </div>
-  </main>
-
+  <section id="login-screen" class="login-shell">
+    <div class="login-aside"><div class="brand"><div class="mark">E</div>ERPise</div><h1>Run every operational workflow from one place.</h1><p>Program A connects sales, inventory, fulfillment, support, and governed edge operations in a single demo workspace.</p><div class="feature-list"><div><span>01</span>Live inventory and order operations</div><div><span>02</span>Event-backed reporting and reconciliation</div><div><span>03</span>Tenant-scoped support and edge controls</div></div></div>
+    <div class="login-panel"><form id="login" class="auth-card"><div class="eyebrow">Program A demonstration</div><h2>Welcome back</h2><p>Sign in to open the operations workspace.</p><label>Email<input id="email" type="email" value="demo@erpise.local" required></label><label>Password<input id="password" type="password" value="demo-only-password" required></label><button type="submit">Sign in to ERPise</button><div class="demo-note">Demo account: <b>demo@erpise.local</b><br>Use synthetic data only.</div></form></div>
+  </section>
+  <div id="workspace">
+    <aside class="sidebar"><div class="brand"><div class="mark">E</div><span>ERPise</span></div><div class="tenant"><strong>Program A</strong><span id="tenant-name">Demo tenant</span></div><div class="nav-label">Operations</div><button class="nav-item active"><i class="nav-dot"></i><span>Overview</span></button><button class="nav-item"><i class="nav-dot"></i><span>Orders</span></button><button class="nav-item"><i class="nav-dot"></i><span>Inventory</span></button><div class="nav-label">Control center</div><button class="nav-item"><i class="nav-dot"></i><span>Reporting</span></button><button class="nav-item"><i class="nav-dot"></i><span>Support</span></button><div class="sidebar-bottom">Synthetic-data demo<br>Local environment</div></aside>
+    <main class="main"><header class="topbar"><div class="breadcrumb">Operations <span>/</span> <b>Overview</b></div><div class="user"><div><b id="user-name">Demo admin</b><br><small style="color:#68758d">Administrator</small></div><div class="avatar">DA</div><button id="logout" class="ghost" type="button">Sign out</button></div></header>
+      <div class="canvas"><div class="page-head"><div><h1>Operations overview</h1><p>Monitor the Program A order-to-fulfillment workflow.</p></div><div class="live"><i></i> Live demo environment</div></div>
+        <section class="metrics"><div class="metric"><label>Total orders</label><strong id="orders-count">0</strong><span>Recorded in this tenant</span></div><div class="metric"><label>Gross sales</label><strong id="gross-sales">$0.00</strong><span>Event-backed reporting</span></div><div class="metric"><label>Available inventory</label><strong id="stock-count">0</strong><span>Units ready to allocate</span></div><div class="metric"><label>System state</label><strong style="font-size:19px;margin-top:8px">Healthy</strong><span>All services connected</span></div></section>
+        <section class="grid"><article class="card"><div class="card-head"><div><h2>Create customer order</h2><p>Reserve inventory and create a durable order event.</p></div><span class="pill">Ready</span></div><div id="catalog-summary" style="margin-bottom:14px;color:#526078;font-size:13px"></div><form id="checkout" class="order-form"><label>Product<select id="product"></select></label><label>Quantity<input id="quantity" type="number" min="1" value="1"></label><label>Fulfillment<select id="method"><option value="pickup">Pickup</option><option value="delivery">Delivery</option></select></label><button type="submit">Create order</button></form><div id="order-detail" class="detail">Create an order to see its reference and fulfillment state.</div></article>
+        <article class="card"><div class="card-head"><div><h2>Customer consent</h2><p>Manage the demo customer's consent state.</p></div></div><p style="color:#68758d;margin:0 0 15px">Consent is tenant-scoped and recorded before customer activity.</p><div class="action-row"><button id="grant-consent" type="button">Grant consent</button><button id="revoke-consent" class="secondary" type="button">Revoke consent</button></div><div id="consent-detail" class="detail">No consent action recorded in this browser session.</div></article></section>
+        <section class="split"><article class="card"><div class="card-head"><div><h2>Recent order activity</h2><p>Durable fulfillment projection.</p></div><button id="refresh" class="secondary" type="button">Refresh</button></div><table><thead><tr><th>Order</th><th>Payment</th><th>Fulfillment</th></tr></thead><tbody id="orders-table"><tr><td colspan="3" class="empty">Loading order activity…</td></tr></tbody></table></article>
+        <article class="card"><div class="card-head"><div><h2>Operations controls</h2><p>Run governed background workflows.</p></div></div><div class="action-row"><button id="replay" class="secondary" type="button">Replay projections</button><button id="edge" class="secondary" type="button">Test edge capacity</button></div><div id="control-detail" class="detail">Use controls to validate event replay and edge reservation lifecycle.</div></article></section>
+        <section class="split"><article class="card"><div class="card-head"><div><h2>Support workflow</h2><p>Create and resolve a customer support case.</p></div></div><form id="support" class="support-form"><input id="subject" value="Customer support request" aria-label="Support subject"><textarea id="details" aria-label="Support details">Program A demonstration support request</textarea><button type="submit" style="width:max-content">Run support lifecycle</button></form><div id="case-detail" class="detail">No support workflow has run.</div></article>
+        <article class="card"><div class="card-head"><div><h2>Demo guide</h2><p>Suggested presentation path.</p></div></div><ol style="margin:0;padding-left:20px;color:#526078;display:grid;gap:9px"><li>Review stock and sales metrics.</li><li>Create a pickup or delivery order.</li><li>Refresh the event-backed order projection.</li><li>Run support and edge lifecycle controls.</li></ol></article></section>
+        <div class="footer-note">ERPise Program A local demonstration. Data is synthetic and resettable.</div>
+      </div>
+    </main>
+  </div><div id="toast" class="toast"></div>
   <script>
-    const $ = (selector) => document.querySelector(selector);
-    const status = $('#status');
-    const state = { products: [] };
-
-    function note(message, style = '') {
-      status.className = style;
-      status.textContent = message;
-    }
-
-    async function api(path, options = {}) {
-      const response = await fetch(path, { credentials: 'same-origin', ...options });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || 'request_failed');
-      return body;
-    }
-
-    async function refresh() {
-      const [catalog, projection, report] = await Promise.all([
-        api('/api/products'),
-        api('/api/projections/orders'),
-        api('/api/reports/sales')
-      ]);
-      state.products = catalog.products;
-      $('#products').innerHTML = state.products.map((item) =>
-        `<p><strong>${item.name}</strong>: $${(item.price_cents / 100).toFixed(2)}, ${item.available} available</p>`
-      ).join('');
-      $('#product').innerHTML = state.products.map((item) =>
-        `<option value="${item.id}">${item.name}</option>`
-      ).join('');
-      $('#orders').textContent = JSON.stringify({ projection: projection.orders, report }, null, 2);
-    }
-
-    $('#login').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      try {
-        const session = await api('/api/auth/login', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ email: $('#email').value, password: $('#password').value })
-        });
-        $('#login').style.display = 'none';
-        $('#app').style.display = 'block';
-        $('#context').textContent = `${session.user} is active for ${session.tenant} as ${session.role}.`;
-        await refresh();
-        note('Authenticated Program A session is active.', 'success');
-      } catch (error) {
-        note(error.message, 'error');
-      }
-    });
-
-    $('#logout').addEventListener('click', async () => {
-      await api('/api/auth/logout', { method: 'POST' });
-      window.location.reload();
-    });
-
-    $('#consent').addEventListener('click', async () => {
-      try {
-        await api('/api/consent', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ customer_id: 'customer' })
-        });
-        note('Customer consent recorded.', 'success');
-      } catch (error) {
-        note(error.message, 'error');
-      }
-    });
-
-    $('#checkout').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      try {
-        const order = await api('/api/orders', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
-          body: JSON.stringify({
-            product_id: $('#product').value,
-            quantity: Number($('#quantity').value),
-            customer_id: 'customer',
-            fulfillment_method: $('#method').value
-          })
-        });
-        $('#checkout-result').textContent = JSON.stringify(order, null, 2);
-        await refresh();
-        note('Order created.', 'success');
-      } catch (error) {
-        note(error.message, 'error');
-      }
-    });
-
-    $('#refresh').addEventListener('click', () => refresh().catch((error) => note(error.message, 'error')));
-    $('#replay').addEventListener('click', async () => {
-      try {
-        await api('/api/events/replay', { method: 'POST' });
-        await refresh();
-        note('Projection replay complete.', 'success');
-      } catch (error) {
-        note(error.message, 'error');
-      }
-    });
-
-    $('#support').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      try {
-        const created = await api('/api/cases', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ subject: $('#subject').value, details: $('#details').value })
-        });
-        const headers = { 'content-type': 'application/json' };
-        const assigned = await api(`/api/cases/${created.case_id}`, { method: 'POST', headers, body: JSON.stringify({ status: 'assigned', assignee: 'demo@erpise.local' }) });
-        const escalated = await api(`/api/cases/${created.case_id}`, { method: 'POST', headers, body: JSON.stringify({ status: 'escalated' }) });
-        const resolved = await api(`/api/cases/${created.case_id}`, { method: 'POST', headers, body: JSON.stringify({ status: 'resolved' }) });
-        $('#case-result').textContent = JSON.stringify({ created, assigned, escalated, resolved }, null, 2);
-        note('Support case lifecycle complete.', 'success');
-      } catch (error) {
-        note(error.message, 'error');
-      }
-    });
-
-    $('#edge').addEventListener('click', async () => {
-      try {
-        const reservationId = crypto.randomUUID();
-        const headers = { 'content-type': 'application/json' };
-        const reserve = await api('/api/edge/reserve', { method: 'POST', headers: { ...headers, 'Idempotency-Key': reservationId }, body: JSON.stringify({ reservation_id: reservationId, quantity: 1 }) });
-        const confirm = await api('/api/edge/confirm', { method: 'POST', headers, body: JSON.stringify({ reservation_id: reservationId }) });
-        const release = await api('/api/edge/release', { method: 'POST', headers, body: JSON.stringify({ reservation_id: reservationId }) });
-        const capacity = await api('/api/edge');
-        $('#edge-result').textContent = JSON.stringify({ reserve, confirm, release, capacity }, null, 2);
-        note('Governed edge lifecycle complete.', 'success');
-      } catch (error) {
-        note(error.message, 'error');
-      }
-    });
+    const $ = (s) => document.querySelector(s); const state = { products: [] };
+    function message(text, error=false) { const t=$('#toast'); t.textContent=text; t.className=`toast show${error?' error':''}`; setTimeout(()=>t.className='toast',4000); }
+    async function api(path, options={}) { const r=await fetch(path,{credentials:'same-origin',...options}); const d=await r.json(); if(!r.ok) throw new Error(d.error||'Request failed'); return d; }
+    const money=(c)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format((c||0)/100);
+    const short=(value)=>String(value||'—').replace(/^order-/,'#').slice(0,12);
+    function showDetail(id,value){ $(id).textContent=typeof value==='string'?value:JSON.stringify(value,null,2); }
+    async function refresh(){ const [catalog,projection,report]=await Promise.all([api('/api/products'),api('/api/projections/orders'),api('/api/reports/sales')]); state.products=catalog.products||[]; const inventory=state.products.reduce((total,p)=>total+Number(p.available||0),0); $('#orders-count').textContent=report.orders||0; $('#gross-sales').textContent=money(report.gross_sales_cents); $('#stock-count').textContent=inventory; $('#catalog-summary').textContent=state.products.length?`${state.products[0].name} · ${money(state.products[0].price_cents)} · ${state.products[0].available} units available`:'No products available'; $('#product').innerHTML=state.products.map(p=>`<option value="${p.id}">${p.name}</option>`).join(''); const rows=projection.orders||[]; $('#orders-table').innerHTML=rows.length?rows.slice(0,6).map(o=>`<tr><td>${short(o.order_id)}</td><td>${short(o.payment_id)}</td><td><span class="status">${o.fulfillment_status}</span></td></tr>`).join(''):'<tr><td colspan="3" class="empty">No orders have been projected yet.</td></tr>'; }
+    $('#login').addEventListener('submit',async(e)=>{ e.preventDefault(); try { const session=await api('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('#email').value,password:$('#password').value})}); $('#login-screen').style.display='none'; $('#workspace').style.display='block'; $('#tenant-name').textContent=session.tenant; $('#user-name').textContent=session.user; await refresh(); message('Signed in. Operations workspace is ready.'); } catch(err){ message(err.message,true); } });
+    $('#logout').addEventListener('click',async()=>{ await api('/api/auth/logout',{method:'POST'}); location.reload(); }); $('#refresh').addEventListener('click',()=>refresh().then(()=>message('Metrics and projections refreshed.')).catch(e=>message(e.message,true)));
+    $('#checkout').addEventListener('submit',async(e)=>{e.preventDefault();try{const order=await api('/api/orders',{method:'POST',headers:{'content-type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({product_id:$('#product').value,quantity:Number($('#quantity').value),customer_id:'customer',fulfillment_method:$('#method').value})});showDetail('#order-detail',{order_reference:order.order_id,payment_reference:order.payment_id,fulfillment:order.fulfillment_status,reservation:order.reservation});await refresh();message('Order created and inventory reserved.');}catch(err){message(err.message,true)}});
+    async function consent(consented){try{const d=await api(consented?'/api/consent':'/api/consent/revoke',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({customer_id:'customer'})});showDetail('#consent-detail',d);message(consented?'Customer consent granted.':'Customer consent revoked.');}catch(err){message(err.message,true)}} $('#grant-consent').onclick=()=>consent(true); $('#revoke-consent').onclick=()=>consent(false);
+    $('#replay').addEventListener('click',async()=>{try{const d=await api('/api/events/replay',{method:'POST'});await refresh();showDetail('#control-detail',{projection_replay:d.replayed});message('Order projections replayed.');}catch(err){message(err.message,true)}});
+    $('#edge').addEventListener('click',async()=>{try{const id=crypto.randomUUID(),headers={'content-type':'application/json'};const reserve=await api('/api/edge/reserve',{method:'POST',headers:{...headers,'Idempotency-Key':id},body:JSON.stringify({reservation_id:id,quantity:1})});const confirm=await api('/api/edge/confirm',{method:'POST',headers,body:JSON.stringify({reservation_id:id})});const release=await api('/api/edge/release',{method:'POST',headers,body:JSON.stringify({reservation_id:id})});const capacity=await api('/api/edge');showDetail('#control-detail',{reserve,confirm,release,capacity});message('Edge capacity lifecycle completed.');}catch(err){message(err.message,true)}});
+    $('#support').addEventListener('submit',async(e)=>{e.preventDefault();try{const headers={'content-type':'application/json'};const created=await api('/api/cases',{method:'POST',headers,body:JSON.stringify({subject:$('#subject').value,details:$('#details').value})});const assigned=await api(`/api/cases/${created.case_id}`,{method:'POST',headers,body:JSON.stringify({status:'assigned',assignee:'demo@erpise.local'})});const escalated=await api(`/api/cases/${created.case_id}`,{method:'POST',headers,body:JSON.stringify({status:'escalated'})});const resolved=await api(`/api/cases/${created.case_id}`,{method:'POST',headers,body:JSON.stringify({status:'resolved'})});showDetail('#case-detail',{case_reference:created.case_id,final_status:resolved.status,assignee:assigned.assignee,transitions:[created.status,assigned.status,escalated.status,resolved.status]});message('Support case assigned, escalated, and resolved.');}catch(err){message(err.message,true)}});
   </script>
 </body>
 </html>
