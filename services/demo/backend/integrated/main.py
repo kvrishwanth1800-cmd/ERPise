@@ -9,7 +9,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, cast
 from foundation.access import AuthorizationDeniedError
-from foundation.organization import ScopedDeniedError
+from foundation.organization import ScopeDeniedError
 from integrated import audit, cases, catalog, customers, edge, events, orders, projections, reports, sessions
 from integrated.auth import FoundationSessionAuthorizer
 from integrated.persistence import migrate
@@ -80,7 +80,7 @@ class GovernedHandler(BaseHTTPRequestHandler):
         action = "orders.write" if self.path == "/api/orders" and self.command == "POST" else ACTIONS.get("/api/edge" if self.path.startswith("/api/edge") else "/api/cases" if self.path.startswith("/api/cases") else self.path)
         if action is None: self.respond({"error":"not_found"},HTTPStatus.NOT_FOUND); return None
         try: AUTHORIZER.authorize(session, action)
-        except (AuthorizationDeniedError, ScopedDeniedError): self.respond({"error":"authorization_denied"},HTTPStatus.FORBIDDEN); return None
+        except (AuthorizationDeniedError, ScopeDeniedError): self.respond({"error":"authorization_denied"},HTTPStatus.FORBIDDEN); return None
         return session
     def session(self) -> dict[str,str] | None:
         cookie = SimpleCookie(self.headers.get("Cookie")); value=cookie.get("erpise_session"); return sessions.get(None if value is None else value.value)
