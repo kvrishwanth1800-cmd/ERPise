@@ -6,7 +6,9 @@ trap 'rm -f "$cookie"' EXIT
 curl --fail --silent "$api/health/live" >/dev/null
 curl --fail --silent -c "$cookie" -X POST "$api/api/auth/login" -H 'content-type: application/json' -d '{"email":"demo@erpise.local","password":"demo-only-password"}' >/dev/null
 curl --fail --silent -b "$cookie" "$api/api/products" | grep 'coffee' >/dev/null
-curl --fail --silent -b "$cookie" -X POST "$api/api/consent" -H 'content-type: application/json' -d '{"customer_id":"customer"}' >/dev/null
+curl --fail --silent -b "$cookie" -X POST "$api/api/consent" -H 'content-type: application/json' -d '{"customer_id":"customer"}' | grep '"consented": true' >/dev/null
+curl --fail --silent -b "$cookie" -X POST "$api/api/consent/revoke" -H 'content-type: application/json' -d '{"customer_id":"customer"}' | grep '"consented": false' >/dev/null
+curl --fail --silent -b "$cookie" -X POST "$api/api/consent" -H 'content-type: application/json' -d '{"customer_id":"customer"}' | grep '"consented": true' >/dev/null
 order=$(curl --fail --silent -b "$cookie" -X POST "$api/api/orders" -H 'content-type: application/json' -H 'Idempotency-Key: connection-regression-001' -d '{"product_id":"coffee","quantity":1,"customer_id":"customer","fulfillment_method":"pickup"}')
 printf '%s' "$order" | grep 'reserved' >/dev/null
 for attempt in $(seq 1 20); do curl --fail --silent -b "$cookie" "$api/api/projections/orders" | grep 'order-' >/dev/null && break; [ "$attempt" -eq 20 ] && exit 1; sleep 1; done

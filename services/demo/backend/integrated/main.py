@@ -2,19 +2,20 @@
 """Governed modular HTTP entry point for the Program A demonstration runtime."""
 from __future__ import annotations
 import json
+import secrets
 import uuid
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, cast
 from foundation.access import AuthorizationDeniedError
-from foundation.organization import ScopeDeniedError
+from foundation.organization import ScopedDeniedError
 from integrated import audit, cases, catalog, customers, edge, events, orders, projections, reports, sessions
 from integrated.auth import FoundationSessionAuthorizer
 from integrated.persistence import migrate
 
 AUTHORIZER = FoundationSessionAuthorizer()
-ACTIONS = {"/api/session":"session.read","/api/products":"products.read","/api/reports/sales":"reports.read","/api/orders":"orders.read","/api/projections/orders":"orders.read","/api/consent":"consent.write","/api/events/replay":"orders.write","/api/edge":"orders.read","/api/cases":"cases.write"}
+ACTIONS = {"/api/session":"session.read","/api/products":"products.read","/api/reports/sales":"reports.read","/api/orders":"orders.read","/api/projections/orders":"orders.read","/api/consent":"consent.write","/api/consent/revoke":"consent.write","/api/events/replay":"orders.write","/api/edge":"orders.read","/api/cases":"cases.write"}
 
 class GovernedHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
@@ -42,6 +43,8 @@ class GovernedHandler(BaseHTTPRequestHandler):
             data = self.payload()
             if self.path == "/api/consent":
                 result = customers.grant_consent(tenant, str(data.get("customer_id","customer"))); action="consent.granted"
+            elif self.path == "/api/consent/revoke":
+                result = customers.revoke_consent(tenant, str(data.get("customer_id","customer"))); action="consent.revoked"
             elif self.path == "/api/orders":
                 result = orders.create(tenant, str(data.get("customer_id","customer")), str(data.get("product_id","")), int(data.get("quantity",0)), str(data.get("fulfillment_method","pickup")), self.headers.get("Idempotency-Key", "")); action="order.created"
             elif self.path == "/api/events/replay":
@@ -58,13 +61,14 @@ class GovernedHandler(BaseHTTPRequestHandler):
                 action = f"edge.{operation}"
             else:
                 self.respond({"error":"not_found"}, HTTPStatus.NOT_FOUND); return
-            audit.record(tenant, user, action, str(result.get("case_id", result.get("reservation_id", result.get("order_id", "")))), self.trace_id())
+            audit.record(tenant, user, action, str(result.get("case_id", result.get("reservation_id", result.get("order_id", result.get("customer_id", ""))))), self.trace_id())
             self.respond(result, HTTPStatus.CREATED if self.path in {"/api/orders","/api/cases","/api/edge/reserve"} else HTTPStatus.OK)
         except (TypeError, ValueError) as error: self.respond({"error":str(error)}, HTTPStatus.BAD_REQUEST)
 
     def login(self) -> None:
         data = self.payload()
-        if data.get("email") != "demo@erpise.local" or data.get("password") != "demo-only-password": self.respond({"error":"invalid_credentials"}, HTTPStatus.UNAUTHORIZED); return
+        if not (secrets.compare_digest(str(data.get("email", "")), "demo@erpise.local") and secrets.compare_digest(str(data.get("password", "")), "demo-only-password")):
+            self.respond({"error":"invalid_credentials"}, HTTPStatus.UNAUTHORIZED); return
         session = sessions.create(); self.respond({"tenant":session["tenant_id"],"user":session["user_id"],"role":session["role"]}, headers={"Set-Cookie":f"erpise_session={session['session_id']}; HttpOnly; SameSite=Strict; Path=/"})
     def logout(self) -> None:
         session = self.session()
@@ -76,7 +80,7 @@ class GovernedHandler(BaseHTTPRequestHandler):
         action = "orders.write" if self.path == "/api/orders" and self.command == "POST" else ACTIONS.get("/api/edge" if self.path.startswith("/api/edge") else "/api/cases" if self.path.startswith("/api/cases") else self.path)
         if action is None: self.respond({"error":"not_found"},HTTPStatus.NOT_FOUND); return None
         try: AUTHORIZER.authorize(session, action)
-        except (AuthorizationDeniedError, ScopeDeniedError): self.respond({"error":"authorization_denied"},HTTPStatus.FORBIDDEN); return None
+        except (AuthorizationDeniedError, ScopedDeniedError): self.respond({"error":"authorization_denied"},HTTPStatus.FORBIDDEN); return None
         return session
     def session(self) -> dict[str,str] | None:
         cookie = SimpleCookie(self.headers.get("Cookie")); value=cookie.get("erpise_session"); return sessions.get(None if value is None else value.value)
