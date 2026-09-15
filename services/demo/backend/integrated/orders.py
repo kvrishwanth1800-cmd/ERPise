@@ -16,6 +16,9 @@ def create(tenant_id: str, customer_id: str, product_id: str, quantity: int, met
     if quantity < 1 or not idempotency_key or method not in {"pickup", "delivery"}:
         raise ValueError("invalid_checkout")
     with connect() as connection, connection.cursor() as cursor:
+        # Serialize requests for the same tenant and idempotency key. This prevents a
+        # concurrent duplicate from consuming stock before its replay is identified.
+        cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"{tenant_id}:{idempotency_key}",))
         cursor.execute("SELECT order_id, payment_id, fulfillment_status FROM demo_orders WHERE tenant_id = %s AND idempotency_key = %s", (tenant_id, idempotency_key))
         existing = cursor.fetchone()
         if existing is not None:

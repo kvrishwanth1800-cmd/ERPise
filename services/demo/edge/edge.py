@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import cast
 import psycopg
 DATABASE_URL=os.environ["DATABASE_URL"]
-SERVICE_KEY=os.environ.get("EDGE_SERVICE_KEY","demo-edge-service-key")
+SERVICE_KEY=os.environ["EDGE_SERVICE_KEY"]
 def connect() -> psycopg.Connection[tuple[object,...]]: return psycopg.connect(DATABASE_URL)
 def migrate() -> None:
  with connect() as c,c.cursor() as x:
@@ -29,7 +29,9 @@ class Handler(BaseHTTPRequestHandler):
   data=self.data();rid=str(data.get("reservation_id",""));key=self.headers.get("Idempotency-Key","")
   if self.path=="/reserve":
    qty=int(cast(int|str,data.get("quantity",0)))
+   if not rid or not key or qty < 1:self.reply({"error":"invalid_reservation"},HTTPStatus.BAD_REQUEST);return
    with connect() as c,c.cursor() as x:
+    x.execute("SELECT pg_advisory_xact_lock(hashtext(%s))",(f"{tenant}:{key}",))
     x.execute("SELECT reservation_id,status FROM demo_edge_reservations WHERE tenant_id=%s AND idempotency_key=%s",(tenant,key));old=x.fetchone()
     if old is not None:self.reply({"reservation_id":str(old[0]),"status":str(old[1]),"idempotent":True});return
     x.execute("UPDATE demo_edge_capacity SET reserved=reserved+%s WHERE tenant_id=%s AND reserved+%s<=capacity RETURNING reserved",(qty,tenant,qty))
